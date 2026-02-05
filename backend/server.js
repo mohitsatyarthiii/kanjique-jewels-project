@@ -14,6 +14,7 @@ import ordersRoutes from './routes/ordersRoutes.js'
 import userOrdersRoutes from "./routes/userOrdersRoutes.js"; 
 import adminStatsRoutes from "./routes/adminStatsRoutes.js";
 import adminOrderRoutes from "./routes/adminOrderRoutes.js";
+import locationRoutes from "./routes/locationRoutes.js";
 import { connectDB} from './config/db.js'
 
 
@@ -51,6 +52,7 @@ app.use(checkoutRoutes)
 app.use(profileRoutes)
 app.use("/api/admin/stats", adminStatsRoutes);
 app.use("/api/user/orders", userOrdersRoutes); //
+app.use("/api", locationRoutes);
 
 
 app.listen(5000, () => console.log("Server running on port 5000"));

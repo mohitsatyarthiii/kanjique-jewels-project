@@ -7,6 +7,8 @@ import {
   Linkedin,
   Youtube,
 } from "lucide-react";
+   // <-- apne path ke hisaab se change karna
+import { MdWhatsapp } from "react-icons/md";
 
 const Footer = () => {
   return (
@@ -25,13 +27,16 @@ const Footer = () => {
         <div className="backdrop-blur-xl bg-white/70 border border-white/60 rounded-[32px] shadow-[0_40px_120px_rgba(0,0,0,0.08)] p-12">
           {/* GRID */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-14">
-            {/* BRAND */}
+            {/* BRAND WITH LOGO */}
             <div>
               <Link to="/">
-                <h3 className="font-serif text-3xl tracking-wide text-black hover:text-[#b2965a] transition-colors">
-                  KANJIQUE <span className="text-[#b2965a]">JEWELS</span>
-                </h3>
+                <img
+                  src="/logo.png"
+                  alt="Kanjique Jewels Logo"
+                  className="h-20 w-auto mb-4"
+                />
               </Link>
+
               <p className="mt-6 text-sm text-gray-600 leading-relaxed">
                 Kanjique Jewels is a modern luxury jewellery brand crafting
                 refined designs for everyday elegance. Each piece blends
@@ -40,29 +45,24 @@ const Footer = () => {
 
               {/* SOCIAL ICONS */}
               <div className="mt-8 flex gap-4">
-                <SocialIcon 
-                  icon={Instagram} 
-                  url="https://instagram.com" 
+                <SocialIcon
+                  icon={Instagram}
+                  url="https://www.instagram.com/kanjique_jewels?igsh=MWFteXFycTZsZHU0dQ=="
                   label="Instagram"
                 />
-                <SocialIcon 
-                  icon={Facebook} 
-                  url="https://facebook.com" 
+                <SocialIcon
+                  icon={Facebook}
+                  url="https://www.facebook.com/share/1AgAXZpJmn/?mibextid=wwXIfr"
                   label="Facebook"
                 />
-                <SocialIcon 
-                  icon={Twitter} 
-                  url="https://twitter.com" 
-                  label="Twitter"
+                <SocialIcon
+                  icon={MdWhatsapp}
+                  url="https://wa.me/918744827772"
+                  label="Whatsapp"
                 />
-                <SocialIcon 
-                  icon={Linkedin} 
-                  url="https://linkedin.com" 
-                  label="LinkedIn"
-                />
-                <SocialIcon 
-                  icon={Youtube} 
-                  url="https://youtube.com" 
+                <SocialIcon
+                  icon={Youtube}
+                  url="https://youtube.com/@kanjique_jewels?si=2Cp6_e03kLHFuRQz"
                   label="YouTube"
                 />
               </div>
@@ -132,7 +132,7 @@ const FooterColumn = ({ title, items }) => (
     <ul className="mt-6 space-y-4 text-sm text-gray-600">
       {items.map((item) => (
         <li key={item.path}>
-          <Link 
+          <Link
             to={item.path}
             className="
               relative w-fit cursor-pointer transition-all block
@@ -148,9 +148,9 @@ const FooterColumn = ({ title, items }) => (
 );
 
 const SocialIcon = ({ icon: Icon, url, label }) => (
-  <a 
-    href={url} 
-    target="_blank" 
+  <a
+    href={url}
+    target="_blank"
     rel="noopener noreferrer"
     aria-label={label}
     className="

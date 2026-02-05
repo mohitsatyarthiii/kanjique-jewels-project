@@ -149,18 +149,13 @@ const Navbar = ({ homeTransparent = false }) => {
             {/* TOP BAR */}
             <div className="h-16 sm:h-20 flex items-center justify-between px-4 sm:px-6">
               {/* LOGO */}
-              <NavLink
-                to="/"
-                className={[
-                  "font-serif text-[25px] sm:text-[15px] tracking-wide transition-colors",
-                  isGlass ? "text-black" : "text-white",
-                ].join(" ")}
-              >
-                <span className="font-semibold">KANJIQUE</span>{" "}
-                <span className={isGlass ? "text-[#b2965a]" : "text-[#ffd38a]"}>
-                  JEWELS
-                </span>
-              </NavLink>
+              <NavLink to="/" className="flex items-center">
+  <img
+    src="/logo.png"
+    alt="Kanjique Jewels"
+    className="h-14 sm:h-16 w-auto transition-transform hover:scale-105"
+  />
+</NavLink>
 
               {/* DESKTOP CATEGORIES LINKS */}
               <div className="hidden lg:flex gap-6 ml-8">

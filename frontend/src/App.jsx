@@ -30,7 +30,11 @@ import AdminProducts from "./pages/dashboard/components/AdminProducts";
 import AdminUsers from "./pages/dashboard/components/AdminUsers";
 import AdminOrders from "./pages/dashboard/components/AdminOrders";
 
+import { useLocalization } from "./hooks/useLocalization";
+import { LocalizationProvider } from "./context/LocalizationContext";
+
 function App() {
+  useLocalization();
   const location = useLocation();
 
   // ✅ admin routes pe Navbar & Footer hide
@@ -39,7 +43,7 @@ function App() {
   return (
     <>
       <ScrollToTop />
-
+<LocalizationProvider>
       <CartNotificationProvider>
         <div>
           {/* Navbar */}
@@ -136,6 +140,7 @@ function App() {
           {!isAdminRoute && <Footer />}
         </div>
       </CartNotificationProvider>
+      </LocalizationProvider>
     </>
   );
 }
