@@ -35,6 +35,7 @@ import { LocalizationProvider } from "./context/LocalizationContext";
 
 function App() {
 
+  const location = useLocation();   // ✅ VERY IMPORTANT FIX
 
   // ✅ admin routes pe Navbar & Footer hide
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -139,9 +140,8 @@ function App() {
           {!isAdminRoute && <Footer />}
         </div>
       </CartNotificationProvider>
-      
     </>
   );
 }
 
-export default App;
+export default App
