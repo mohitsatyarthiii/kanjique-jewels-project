@@ -67,8 +67,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/product", productRoutes);
-app.use("/api/products", productsRoutes);
+app.use("/api", productRoutes);
+app.use("/api/product", productsRoutes);
 app.use("/api/cart", cartRoutes); // Fixed: added /api/cart prefix
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);

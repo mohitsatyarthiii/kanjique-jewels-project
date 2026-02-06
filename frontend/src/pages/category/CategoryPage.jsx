@@ -44,7 +44,7 @@ export default function CategoryPage() {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const res = await api.get("/api/products", {
+        const res = await api.get("/api", {
           params: { category, subcategory },
         });
         setProducts(res.data.products);
