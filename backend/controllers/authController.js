@@ -7,10 +7,11 @@ const COOKIE_NAME = process.env.COOKIE_NAME || "token";
 const setTokenCookie = (res, token) => {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: true,        // HTTPS required
-    sameSite: "none",    // Cross-site cookies
-    path: "/",           // 🔥 CRITICAL FIX
+    secure: true,        // HTTPS mandatory
+    sameSite: "none",    // cross-site mandatory
+    path: "/",           // 🔥 CRITICAL
     maxAge: 7 * 24 * 60 * 60 * 1000,
+    domain: ".kanjiquejewels.com" // 🔥 IMPORTANT FIX
   });
 };
 
