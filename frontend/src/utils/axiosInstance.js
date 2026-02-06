@@ -1,55 +1,35 @@
 import axios from "axios";
 
-// Dynamic base URL based on environment
 const getBaseURL = () => {
-  const isProduction = window.location.hostname !== "localhost";
+  const host = window.location.hostname;
 
-  if (isProduction) {
+  if (host.includes("kanjiquejewels.com")) {
     return "https://api.kanjiquejewels.com";
-  } else {
-    return "http://localhost:5000";
   }
+
+  // Local dev (both localhost & 127.0.0.1)
+  return "http://localhost:5000";
 };
 
 const api = axios.create({
   baseURL: getBaseURL(),
-  withCredentials: true,   // ✅ MUST for cookies
-  timeout: 10000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    console.log(
-      `${config.method.toUpperCase()} ${config.baseURL}${config.url}`
-    );
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error(
-      "API Error:",
-      error.response?.status,
-      error.config?.url
-    );
-
     if (error.response?.status === 401) {
-      // Clear only user (token cookies are httpOnly anyway)
       localStorage.removeItem("user");
 
-      if (window.location.pathname !== "/login") {
+      // ❗ IMPORTANT FIX — don't redirect on /me failure
+      if (!error.config.url.includes("/auth/me")) {
         window.location.href = "/login";
       }
     }
-
     return Promise.reject(error);
   }
 );
