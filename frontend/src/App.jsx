@@ -34,8 +34,7 @@ import { useLocalization } from "./hooks/useLocalization";
 import { LocalizationProvider } from "./context/LocalizationContext";
 
 function App() {
-  useLocalization();
-  const location = useLocation();
+
 
   // ✅ admin routes pe Navbar & Footer hide
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -43,7 +42,7 @@ function App() {
   return (
     <>
       <ScrollToTop />
-<LocalizationProvider>
+
       <CartNotificationProvider>
         <div>
           {/* Navbar */}
@@ -140,7 +139,7 @@ function App() {
           {!isAdminRoute && <Footer />}
         </div>
       </CartNotificationProvider>
-      </LocalizationProvider>
+      
     </>
   );
 }

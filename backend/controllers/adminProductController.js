@@ -15,12 +15,10 @@ export const createProduct = async (req, res) => {
       subCategory, 
       gender,
       brand, 
-      inStock,
-      tags,
-      metaTitle,
-      metaDescription,
       variants,
-      isFeatured
+      isFeatured,
+      metaTitle,
+      metaDescription
     } = req.body;
 
     if (!title || !basePrice || !category || !subCategory)
@@ -122,11 +120,9 @@ export const createProduct = async (req, res) => {
         discountPercentage: variant.discountPercentage ? parseFloat(variant.discountPercentage) : 0,
         stockQuantity: parseInt(variant.stockQuantity),
       })),
-      tags: tags ? (typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()) : tags) : [],
       metaTitle: metaTitle || title,
       metaDescription: metaDescription || shortDescription || description?.substring(0, 160),
       isFeatured: isFeatured === 'true' || isFeatured === true,
-      inStock: inStock !== undefined ? inStock : true,
       createdBy: req.user._id,
     });
 
@@ -145,7 +141,7 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// Get all products with filtering and pagination
+// Get all products with filtering and pagination (for admin dashboard)
 export const getProducts = async (req, res) => {
   try {
     const { 
@@ -164,11 +160,16 @@ export const getProducts = async (req, res) => {
       sortOrder = 'desc',
       inStock,
       isFeatured,
-      tags
+      isActive = true  // Default to active products only
     } = req.query;
 
     // Build filter query
-    const filter = { isActive: true };
+    const filter = {};
+    
+    // Filter by active status unless specifically asking for inactive
+    if (isActive !== 'false') {
+      filter.isActive = isActive === 'true' ? true : true;
+    }
     
     if (category) filter.category = category;
     if (subCategory) filter.subCategory = subCategory;
@@ -178,10 +179,15 @@ export const getProducts = async (req, res) => {
     if (isFeatured !== undefined) filter.isFeatured = isFeatured === 'true';
     
     // Price filter
-    if (minPrice || maxPrice) {
-      filter.minPrice = {};
-      if (minPrice) filter.minPrice.$gte = parseFloat(minPrice);
-      if (maxPrice) filter.maxPrice.$lte = parseFloat(maxPrice);
+    const priceFilter = {};
+    if (minPrice) priceFilter.$gte = parseFloat(minPrice);
+    if (maxPrice) priceFilter.$lte = parseFloat(maxPrice);
+    
+    if (Object.keys(priceFilter).length > 0) {
+      filter.$or = [
+        { minPrice: priceFilter },
+        { maxPrice: priceFilter }
+      ];
     }
     
     // Color filter
@@ -194,19 +200,14 @@ export const getProducts = async (req, res) => {
       filter.availableSizes = size;
     }
     
-    // Tags filter
-    if (tags) {
-      const tagsArray = tags.split(',').map(tag => tag.trim());
-      filter.tags = { $in: tagsArray };
-    }
-    
     // Search filter
     if (search) {
       filter.$or = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
         { brand: { $regex: search, $options: 'i' } },
-        { tags: { $regex: search, $options: 'i' } }
+        { category: { $regex: search, $options: 'i' } },
+        { subCategory: { $regex: search, $options: 'i' } }
       ];
     }
     
@@ -223,6 +224,7 @@ export const getProducts = async (req, res) => {
         .skip(skip)
         .limit(parseInt(limit))
         .populate('createdBy', 'name email')
+        .populate('updatedBy', 'name email')
         .lean(),
       Product.countDocuments(filter)
     ]);
@@ -250,36 +252,7 @@ export const getProducts = async (req, res) => {
   }
 };
 
-// Get single product by slug
-export const getProductBySlug = async (req, res) => {
-  try {
-    const { slug } = req.params;
-    
-    const product = await Product.findOne({ slug, isActive: true })
-      .populate('createdBy', 'name email')
-      .populate('updatedBy', 'name email');
-    
-    if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Product not found" 
-      });
-    }
-    
-    res.json({
-      success: true,
-      product
-    });
-  } catch (err) {
-    console.error("Get product error:", err);
-    res.status(500).json({ 
-      success: false, 
-      error: "Server error fetching product" 
-    });
-  }
-};
-
-// Get single product by ID
+// Get single product by ID (for admin dashboard)
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -304,6 +277,196 @@ export const getProductById = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: "Server error fetching product" 
+    });
+  }
+};
+
+// Get product details for frontend (by slug, only active products)
+export const getProductDetails = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const product = await Product.findOne({ 
+      slug, 
+      isActive: true 
+    })
+    .select('-__v -createdBy -updatedBy -updatedAt')
+    .lean();
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Product not found" 
+      });
+    }
+    
+    // Filter only active variants
+    product.variants = product.variants.filter(variant => variant.isActive);
+    
+    // Calculate best price for display
+    const activePrices = product.variants.map(v => v.salePrice || v.price);
+    product.bestPrice = activePrices.length > 0 ? Math.min(...activePrices) : product.baseSalePrice || product.basePrice;
+    
+    res.json({
+      success: true,
+      product
+    });
+  } catch (err) {
+    console.error("Get product details error:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: "Server error fetching product details" 
+    });
+  }
+};
+
+// Get featured products for frontend
+export const getFeaturedProducts = async (req, res) => {
+  try {
+    const { limit = 8 } = req.query;
+    
+    const products = await Product.find({ 
+      isActive: true, 
+      isFeatured: true,
+      inStock: true 
+    })
+    .select('title slug basePrice baseSalePrice mainImages brand category overallDiscountPercentage minPrice maxPrice')
+    .limit(parseInt(limit))
+    .sort({ createdAt: -1 })
+    .lean();
+    
+    // Add best price for each product
+    const productsWithBestPrice = products.map(product => ({
+      ...product,
+      displayPrice: product.baseSalePrice || product.basePrice,
+      hasDiscount: product.baseSalePrice && product.baseSalePrice < product.basePrice
+    }));
+    
+    res.json({
+      success: true,
+      products: productsWithBestPrice
+    });
+  } catch (err) {
+    console.error("Get featured products error:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: "Server error fetching featured products" 
+    });
+  }
+};
+
+// Get products for frontend with filtering
+export const getFrontendProducts = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      category, 
+      subCategory, 
+      gender,
+      brand,
+      minPrice, 
+      maxPrice, 
+      color,
+      size,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      isFeatured
+    } = req.query;
+
+    // Build filter query - only active and in stock products
+    const filter = { 
+      isActive: true,
+      inStock: true 
+    };
+    
+    if (category) filter.category = category;
+    if (subCategory) filter.subCategory = subCategory;
+    if (gender) filter.gender = gender;
+    if (brand) filter.brand = brand;
+    if (isFeatured !== undefined) filter.isFeatured = isFeatured === 'true';
+    
+    // Price filter
+    if (minPrice || maxPrice) {
+      filter.$or = [
+        { minPrice: { $gte: parseFloat(minPrice || 0) } },
+        { maxPrice: { $lte: parseFloat(maxPrice || 999999) } }
+      ];
+    }
+    
+    // Color filter
+    if (color) {
+      filter['availableColors.name'] = { $regex: color, $options: 'i' };
+    }
+    
+    // Size filter
+    if (size) {
+      filter.availableSizes = size;
+    }
+    
+    // Search filter
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { brand: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } },
+        { subCategory: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Build sort
+    const sort = {};
+    const sortOptions = {
+      'price-asc': { minPrice: 1 },
+      'price-desc': { minPrice: -1 },
+      'newest': { createdAt: -1 },
+      'popular': { isFeatured: -1, createdAt: -1 },
+      'name-asc': { title: 1 },
+      'name-desc': { title: -1 }
+    };
+    
+    const sortKey = sortBy && sortOrder ? `${sortBy}-${sortOrder}` : 'newest';
+    Object.assign(sort, sortOptions[sortKey] || sortOptions['newest']);
+    
+    // Execute query with pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const [products, total] = await Promise.all([
+      Product.find(filter)
+        .select('title slug basePrice baseSalePrice mainImages brand category subCategory overallDiscountPercentage minPrice maxPrice availableColors availableSizes totalStock')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Product.countDocuments(filter)
+    ]);
+    
+    // Calculate total pages and add display prices
+    const totalPages = Math.ceil(total / parseInt(limit));
+    const productsWithDisplayPrice = products.map(product => ({
+      ...product,
+      displayPrice: product.baseSalePrice || product.basePrice,
+      hasDiscount: product.baseSalePrice && product.baseSalePrice < product.basePrice
+    }));
+    
+    res.json({
+      success: true,
+      products: productsWithDisplayPrice,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalProducts: total,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1
+      }
+    });
+  } catch (err) {
+    console.error("Get frontend products error:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: "Server error fetching products" 
     });
   }
 };
@@ -421,13 +584,6 @@ export const updateProduct = async (req, res) => {
           }));
         }
       }
-    }
-    
-    // Handle tags
-    if (updates.tags) {
-      updates.tags = typeof updates.tags === 'string' 
-        ? updates.tags.split(',').map(tag => tag.trim()) 
-        : updates.tags;
     }
     
     // Add updatedBy field
@@ -586,7 +742,7 @@ export const updateVariantStock = async (req, res) => {
   }
 };
 
-// Search products
+// Search products for frontend
 export const searchProducts = async (req, res) => {
   try {
     const { query } = req.query;
@@ -600,19 +756,28 @@ export const searchProducts = async (req, res) => {
     
     const products = await Product.find({
       isActive: true,
+      inStock: true,
       $or: [
         { title: { $regex: query, $options: 'i' } },
         { description: { $regex: query, $options: 'i' } },
         { brand: { $regex: query, $options: 'i' } },
-        { tags: { $regex: query, $options: 'i' } }
+        { category: { $regex: query, $options: 'i' } },
+        { subCategory: { $regex: query, $options: 'i' } }
       ]
     })
     .select('title slug basePrice baseSalePrice mainImages brand category')
-    .limit(10);
+    .limit(10)
+    .lean();
+    
+    const productsWithDisplayPrice = products.map(product => ({
+      ...product,
+      displayPrice: product.baseSalePrice || product.basePrice,
+      hasDiscount: product.baseSalePrice && product.baseSalePrice < product.basePrice
+    }));
     
     res.json({
       success: true,
-      products
+      products: productsWithDisplayPrice
     });
   } catch (err) {
     console.error("Search products error:", err);
@@ -623,7 +788,7 @@ export const searchProducts = async (req, res) => {
   }
 };
 
-// Get products by category
+// Get products by category for frontend
 export const getProductsByCategory = async (req, res) => {
   try {
     const { category } = req.params;
@@ -631,6 +796,7 @@ export const getProductsByCategory = async (req, res) => {
     
     const filter = { 
       isActive: true,
+      inStock: true,
       category 
     };
     
@@ -639,19 +805,88 @@ export const getProductsByCategory = async (req, res) => {
     }
     
     const products = await Product.find(filter)
-      .select('title slug basePrice baseSalePrice mainImages brand category subCategory isFeatured')
+      .select('title slug basePrice baseSalePrice mainImages brand category subCategory isFeatured minPrice maxPrice availableColors availableSizes')
       .limit(parseInt(limit))
-      .sort({ isFeatured: -1, createdAt: -1 });
+      .sort({ isFeatured: -1, createdAt: -1 })
+      .lean();
+    
+    const productsWithDisplayPrice = products.map(product => ({
+      ...product,
+      displayPrice: product.baseSalePrice || product.basePrice,
+      hasDiscount: product.baseSalePrice && product.baseSalePrice < product.basePrice
+    }));
     
     res.json({
       success: true,
-      products
+      products: productsWithDisplayPrice
     });
   } catch (err) {
     console.error("Get products by category error:", err);
     res.status(500).json({ 
       success: false, 
       error: "Server error fetching products" 
+    });
+  }
+};
+
+// Toggle product active status
+export const toggleProductStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Product not found" 
+      });
+    }
+    
+    product.isActive = !product.isActive;
+    product.updatedBy = req.user._id;
+    await product.save();
+    
+    res.json({
+      success: true,
+      message: `Product ${product.isActive ? 'activated' : 'deactivated'} successfully`,
+      product
+    });
+  } catch (err) {
+    console.error("Toggle product status error:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: "Server error toggling product status" 
+    });
+  }
+};
+
+// Toggle featured status
+export const toggleFeaturedStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Product not found" 
+      });
+    }
+    
+    product.isFeatured = !product.isFeatured;
+    product.updatedBy = req.user._id;
+    await product.save();
+    
+    res.json({
+      success: true,
+      message: `Product ${product.isFeatured ? 'added to' : 'removed from'} featured list`,
+      product
+    });
+  } catch (err) {
+    console.error("Toggle featured status error:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: "Server error toggling featured status" 
     });
   }
 };

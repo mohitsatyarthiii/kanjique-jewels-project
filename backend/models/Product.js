@@ -52,9 +52,6 @@ const productSchema = new mongoose.Schema({
   // Available sizes (for filtering)
   availableSizes: [String],
   
-  // Tags for search
-  tags: [{ type: String }],
-  
   // Stock management
   totalStock: { type: Number, default: 0 },
   inStock: { type: Boolean, default: true },
@@ -112,7 +109,6 @@ productSchema.index({ category: 1, subCategory: 1 });
 productSchema.index({ gender: 1 });
 productSchema.index({ brand: 1 });
 productSchema.index({ minPrice: 1, maxPrice: 1 });
-productSchema.index({ tags: 1 });
 productSchema.index({ isFeatured: 1 });
 productSchema.index({ isActive: 1 });
 
