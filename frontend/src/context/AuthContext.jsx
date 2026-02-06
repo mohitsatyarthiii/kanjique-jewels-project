@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
         const res = await api.get("/api/auth/me");
         setUser(res.data.user);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-      } catch (err) {
+      } catch {
         setUser(null);
         localStorage.removeItem("user");
       } finally {
@@ -26,20 +26,11 @@ export const AuthProvider = ({ children }) => {
     fetchMe();
   }, []);
 
-  const signup = async (form) => {
-    const res = await api.post("/api/auth/signup", form);
-    setUser(res.data.user);
-    localStorage.setItem("user", JSON.stringify(res.data.user));
-    return res.data.user;
-  };
-
   const login = async (form) => {
     const { data } = await api.post("/api/auth/login", form);
-
     setUser(data.user);
     localStorage.setItem("user", JSON.stringify(data.user));
-
-    return data.user;   // 👈 VERY IMPORTANT
+    return data.user;
   };
 
   const logout = async () => {
@@ -49,7 +40,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
