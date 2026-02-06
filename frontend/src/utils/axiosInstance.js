@@ -1,31 +1,24 @@
 import axios from "axios";
 
-const getBaseURL = () => {
-  const host = window.location.hostname;
-
-  if (host.includes("kanjiquejewels.com")) {
-    return "https://api.kanjiquejewels.com";
-  }
-
-  return "https://api.kanjiquejewels.com";
-};
-
 const api = axios.create({
-  baseURL: getBaseURL(),
-  withCredentials: true,
-  headers: { "Content-Type": "application/json" },
+  baseURL: "http://api.kanjiquejewels.com",   // 🔥 FINAL LIVE BACKEND
+  withCredentials: true, // MUST for cookies
+  timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-  // DO NOT LOGOUT ON /me FAILURE
-  if (!error.config.url.includes("/auth/me")) {
-    localStorage.removeItem("user");
-    window.location.href = "/admin";
-  }
-}
+      // Don't auto logout on /me failure
+      if (!error.config.url.includes("/auth/me")) {
+        localStorage.removeItem("user");
+        window.location.href = "/admin";
+      }
+    }
     return Promise.reject(error);
   }
 );
