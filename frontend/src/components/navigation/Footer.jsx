@@ -85,7 +85,6 @@ const Footer = () => {
               title="Company"
               items={[
                 { label: "About Us", path: "/about" },
-                { label: "Our Craft", path: "/craft" },
                 { label: "Products", path: "/products" },
                 { label: "Contact", path: "/contact" },
               ]}
