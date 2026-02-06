@@ -20,12 +20,12 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("user");
-
-      if (!error.config.url.includes("/auth/me")) {
-        window.location.href = "/admin";
-      }
-    }
+  // DO NOT LOGOUT ON /me FAILURE
+  if (!error.config.url.includes("/auth/me")) {
+    localStorage.removeItem("user");
+    window.location.href = "/admin";
+  }
+}
     return Promise.reject(error);
   }
 );
