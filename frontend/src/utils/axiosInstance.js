@@ -7,7 +7,7 @@ const getBaseURL = () => {
     return "https://api.kanjiquejewels.com";
   }
 
-  return "http://localhost:5000";
+  return "https://api.kanjiquejewels.com";
 };
 
 const api = axios.create({
