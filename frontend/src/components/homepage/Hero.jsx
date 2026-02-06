@@ -23,7 +23,8 @@ const Hero = () => {
     <section
       className="
         relative w-full overflow-hidden
-        h-[25vh] sm:h-[48vh] md:h-[100vh]
+        mt-[4rem] md:mt-0        /* 👈 ONLY MOBILE PUSH DOWN */
+        h-[40vh] sm:h-[48vh] md:h-[100vh]
       "
     >
       {slides.map((img, index) => (
@@ -37,8 +38,10 @@ const Hero = () => {
             src={img}
             alt={`Hero Slide ${index + 1}`}
             className="
-              w-full h-full object-cover
-              object-center sm:object-top
+              w-full h-full
+              object-contain md:object-cover   /* 👈 mobile full banner, desktop cover */
+              object-top md:object-center
+              bg-black/5
             "
           />
         </div>

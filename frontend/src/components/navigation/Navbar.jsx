@@ -12,10 +12,7 @@ import {
   FiLogOut,
   FiSearch,
 } from "react-icons/fi";
-import {
-  MdOutlineAccountCircle,
-  MdOutlineShoppingBag,
-} from "react-icons/md";
+import { MdOutlineAccountCircle, MdOutlineShoppingBag } from "react-icons/md";
 import SearchBar from "../../components/SearchBar";
 
 // Jewellery categories
@@ -31,7 +28,7 @@ const Navbar = ({ homeTransparent = false }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -47,7 +44,7 @@ const Navbar = ({ homeTransparent = false }) => {
   useEffect(() => {
     const controlNavbar = () => {
       const currentScrollY = window.scrollY;
-      
+
       if (currentScrollY < 100) {
         setShowNavbar(true);
       } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
@@ -55,12 +52,12 @@ const Navbar = ({ homeTransparent = false }) => {
       } else if (currentScrollY < lastScrollY) {
         setShowNavbar(true);
       }
-      
+
       setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener('scroll', controlNavbar, { passive: true });
-    return () => window.removeEventListener('scroll', controlNavbar);
+    window.addEventListener("scroll", controlNavbar, { passive: true });
+    return () => window.removeEventListener("scroll", controlNavbar);
   }, [lastScrollY]);
 
   // Close on outside click
@@ -69,7 +66,11 @@ const Navbar = ({ homeTransparent = false }) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
         setProfileOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target) && open) {
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target) &&
+        open
+      ) {
         setOpen(false);
       }
     };
@@ -106,7 +107,7 @@ const Navbar = ({ homeTransparent = false }) => {
         const res = await api.get("/api/cart");
         const totalQty = res.data.cart.items.reduce(
           (sum, it) => sum + it.quantity,
-          0
+          0,
         );
         setCartCount(totalQty);
       } catch (err) {
@@ -125,15 +126,15 @@ const Navbar = ({ homeTransparent = false }) => {
 
   return (
     <>
-      <motion.header 
+      <motion.header
         initial={false}
-        animate={{ 
+        animate={{
           y: showNavbar ? 0 : -100,
-          opacity: showNavbar ? 1 : 0
+          opacity: showNavbar ? 1 : 0,
         }}
-        transition={{ 
+        transition={{
           duration: 0.3,
-          ease: "easeInOut"
+          ease: "easeInOut",
         }}
         className="fixed top-0 left-0 w-full z-50"
       >
@@ -150,12 +151,12 @@ const Navbar = ({ homeTransparent = false }) => {
             <div className="h-16 sm:h-20 flex items-center justify-between px-4 sm:px-6">
               {/* LOGO */}
               <NavLink to="/" className="flex items-center">
-  <img
-    src="/logo.png"
-    alt="Kanjique Jewels"
-    className="h-14 sm:h-16 w-auto transition-transform hover:scale-105"
-  />
-</NavLink>
+                <img
+                  src="/logo.png"
+                  alt="Kanjique Jewels"
+                  className="h-14 sm:h-16 w-auto transition-transform hover:scale-105"
+                />
+              </NavLink>
 
               {/* DESKTOP CATEGORIES LINKS */}
               <div className="hidden lg:flex gap-6 ml-8">
@@ -165,7 +166,9 @@ const Navbar = ({ homeTransparent = false }) => {
                     to={`/category/${menu.category}`}
                     className={[
                       "flex items-center gap-1 text-sm font-medium transition-colors py-2",
-                      isGlass ? "text-gray-700 hover:text-[#b2965a]" : "text-white hover:text-[#ffd38a]"
+                      isGlass
+                        ? "text-gray-700 hover:text-[#b2965a]"
+                        : "text-white hover:text-[#ffd38a]",
                     ].join(" ")}
                   >
                     <span>{menu.title}</span>
@@ -185,10 +188,6 @@ const Navbar = ({ homeTransparent = false }) => {
                   isGlass ? "text-gray-900" : "text-white",
                 ].join(" ")}
               >
-                {/* Wishlist */}
-                <NavLink to="/wishlist" className="hover:opacity-80 transition">
-                  <FiHeart className="w-5 h-5" />
-                </NavLink>
 
                 {/* Cart with Count */}
                 <NavLink
@@ -413,7 +412,7 @@ const Navbar = ({ homeTransparent = false }) => {
                       Orders
                     </NavLink>
                   </div>
-                  
+
                   <button
                     onClick={handleLogout}
                     className="w-full mt-3 py-2 rounded-xl bg-red-50 text-red-600 font-medium flex items-center justify-center gap-2"
