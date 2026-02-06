@@ -67,7 +67,7 @@ const corsOptions = {
 };
 
 // Handle preflight requests
-app.options('', cors());
+app.use(cors(corsOptions));
 
 // Middleware
 app.use(cookieParser());

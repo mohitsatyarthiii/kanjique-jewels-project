@@ -253,25 +253,36 @@ export const getProducts = async (req, res) => {
 };
 
 // Get single product by ID (for admin dashboard)
+import mongoose from "mongoose";
+
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    // 🔥 IMPORTANT FIX — validate ObjectId first
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid product ID"
+      });
+    }
+
     const product = await Product.findById(id)
       .populate('createdBy', 'name email')
       .populate('updatedBy', 'name email');
-    
+
     if (!product) {
       return res.status(404).json({ 
         success: false, 
         error: "Product not found" 
       });
     }
-    
+
     res.json({
       success: true,
       product
     });
+
   } catch (err) {
     console.error("Get product error:", err);
     res.status(500).json({ 
@@ -280,6 +291,7 @@ export const getProductById = async (req, res) => {
     });
   }
 };
+
 
 // Get product details for frontend (by slug, only active products)
 export const getProductDetails = async (req, res) => {

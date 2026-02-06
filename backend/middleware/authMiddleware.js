@@ -3,19 +3,18 @@ import { User } from "../models/User.js";
 
 export const requireAuth = async (req, res, next) => {
   try {
-    // Multiple sources से token check करें
-    let token = req.cookies.token;
+    const COOKIE_NAME = process.env.COOKIE_NAME || "token";
+
+    let token = req.cookies[COOKIE_NAME];
     
     if (!token && req.headers.authorization) {
-      // Bearer token से check करें
       token = req.headers.authorization.split(" ")[1];
     }
-    
+
     if (!token) {
       console.log("No token found in cookies or headers");
       return res.status(401).json({ error: "Not authenticated" });
     }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select("-password");
     
