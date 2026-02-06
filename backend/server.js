@@ -30,44 +30,15 @@ const __dirname = path.dirname(__filename);
 connectDB();
 // CORS Configuration for Production
 const allowedOrigins = [
-  "http://localhost:5173",
   "https://kanjique-jewels-project-2.onrender.com",
-  "https://kanjiquejewels.com",  // ✅ अपने actual domain के साथ replace करें
-  "https://www.kanjiquejewels.com",  // ✅ www version भी add करें
-  "http://localhost:3000"  // ✅ अगर React dev server use करते हैं
+  "https://kanjiquejewels.com",
+  "https://www.kanjiquejewels.com"
 ];
 
-// Production में cookies के लिए special CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, postman)
-    if (!origin && process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    // Production में specific origins allow करें
-    if (process.env.NODE_ENV === 'production') {
-      // Production: Only allow specific domains
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        console.log(`CORS blocked: ${origin}`);
-        return callback(new Error('Not allowed by CORS'), false);
-      }
-    } else {
-      // Development: Allow all
-      return callback(null, true);
-    }
-  },
-  credentials: true, // ✅ IMPORTANT: Cookies allow करने के लिए
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
-  exposedHeaders: ['Set-Cookie'], // ✅ Cookies expose करने के लिए
-  maxAge: 86400 // 24 hours
-};
-
-// Handle preflight requests
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 
 // Middleware
 app.use(cookieParser());

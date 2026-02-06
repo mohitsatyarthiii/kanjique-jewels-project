@@ -5,11 +5,11 @@ import { generateToken } from "../utils/generateToken.js";
 const COOKIE_NAME = process.env.COOKIE_NAME || "token";
 
 const setTokenCookie = (res, token) => {
-  const isProd = process.env.NODE_ENV === "production";
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    secure: true,        // HTTPS required
+    sameSite: "none",    // Cross-site cookies
+    path: "/",           // 🔥 CRITICAL FIX
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
