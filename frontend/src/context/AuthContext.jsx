@@ -4,7 +4,9 @@ import api from "../utils/axiosInstance";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(
+    () => JSON.parse(localStorage.getItem("user")) || null
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -12,30 +14,38 @@ export const AuthProvider = ({ children }) => {
       try {
         const res = await api.get("/api/auth/me");
         setUser(res.data.user);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
       } catch (err) {
         setUser(null);
+        localStorage.removeItem("user");
       } finally {
         setLoading(false);
       }
     };
+
     fetchMe();
   }, []);
 
   const signup = async (form) => {
     const res = await api.post("/api/auth/signup", form);
     setUser(res.data.user);
-    return res;
+    localStorage.setItem("user", JSON.stringify(res.data.user));
+    return res.data.user;
   };
 
   const login = async (form) => {
     const { data } = await api.post("/api/auth/login", form);
+
     setUser(data.user);
-    return data.user;
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    return data.user;   // 👈 VERY IMPORTANT
   };
 
   const logout = async () => {
     await api.post("/api/auth/logout");
     setUser(null);
+    localStorage.removeItem("user");
   };
 
   return (

@@ -13,18 +13,29 @@ export default function LoginPage() {
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErr("");
-    setLoading(true);
-    try {
-      const user = await login(form);
-      if (user.role === "admin") navigate("/admin");
-      else navigate("/");
-    } catch (error) {
-      setErr(error.response?.data?.error || "Login failed");
-      setLoading(false);
+  e.preventDefault();
+  setErr("");
+  setLoading(true);
+
+  try {
+    const user = await login(form);
+
+    // 👉 IMPORTANT: store user for protection routes
+    localStorage.setItem("user", JSON.stringify(user));
+
+    // ROLE BASED REDIRECT ✅
+    if (user.role === "admin") {
+      navigate("/admin");
+    } else {
+      navigate("/");
     }
-  };
+
+  } catch (error) {
+    setErr(error.response?.data?.error || "Login failed");
+    setLoading(false);
+  }
+};
+
 
   return (
     <section className="min-h-screen pt-40 pb-16 px-4 sm:px-6 lg:px-10 bg-gradient-to-b from-[#fff7f0] via-white to-[#fff2f7] relative overflow-hidden">
