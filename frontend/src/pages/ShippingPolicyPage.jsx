@@ -77,96 +77,66 @@ const ShippingReturns = () => {
           </section>
 
           {/* Returns Section */}
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-3 border-b border-gray-200">
-              Returns & Exchanges
-            </h2>
-            
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Return Policy</h3>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>30-day return policy from the date of delivery</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Items must be in original condition with all tags and packaging</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Custom-made or personalized items cannot be returned</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Returns are subject to quality inspection</span>
-                  </li>
-                </ul>
-              </div>
+          {/* Returns Section */}
+<section>
+  <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-3 border-b border-gray-200">
+    Returns & Refunds
+  </h2>
 
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">How to Return</h3>
-                <ol className="space-y-3 text-gray-700">
-                  <li className="flex items-start">
-                    <span className="text-gray-900 font-semibold mr-2">1.</span>
-                    <span>Log into your account and go to 'My Orders'</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-900 font-semibold mr-2">2.</span>
-                    <span>Select the item you wish to return</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-900 font-semibold mr-2">3.</span>
-                    <span>Follow the return process and print the return label</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-900 font-semibold mr-2">4.</span>
-                    <span>Package the item securely and ship it back to us</span>
-                  </li>
-                </ol>
-              </div>
+  <div className="space-y-8">
+    <div>
+      <h3 className="text-lg font-semibold text-red-600 mb-3">
+         No Returns & No Refunds Policy
+      </h3>
+      <p className="text-gray-700 mb-4">
+        Please note that all sales are final. We do NOT accept returns, exchanges, or refunds under any circumstances once the order has been placed or delivered.
+      </p>
 
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Refund Process</h3>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Refunds processed within 5-7 business days after receiving the return</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Refund issued to original payment method</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Shipping charges are non-refundable unless the return is due to our error</span>
-                  </li>
-                </ul>
-              </div>
+      <ul className="space-y-2 text-gray-700">
+        <li className="flex items-start">
+          <span className="text-gray-500 mr-2">•</span>
+          <span>Returns are NOT accepted for any product</span>
+        </li>
+        <li className="flex items-start">
+          <span className="text-gray-500 mr-2">•</span>
+          <span>Refunds will NOT be issued since returns are not allowed</span>
+        </li>
+        <li className="flex items-start">
+          <span className="text-gray-500 mr-2">•</span>
+          <span>Once an order is placed, it cannot be canceled</span>
+        </li>
+        <li className="flex items-start">
+          <span className="text-gray-500 mr-2">•</span>
+          <span>Please check product details carefully before purchasing</span>
+        </li>
+      </ul>
+    </div>
 
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Exchanges</h3>
-                <p className="text-gray-700 mb-3">
-                  We offer free exchanges within 30 days of purchase:
-                </p>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Exchanges are subject to stock availability</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>If the desired item is not available, you'll receive store credit or a refund</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-gray-500 mr-2">•</span>
-                    <span>Contact customer support for exchange requests</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </section>
+    <div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-3">
+        Exception (if applicable)
+      </h3>
+      <p className="text-gray-700">
+        A replacement may be considered ONLY if:
+      </p>
+      <ul className="space-y-2 text-gray-700 mt-3">
+        <li className="flex items-start">
+          <span className="text-gray-500 mr-2">•</span>
+          <span>Wrong item delivered</span>
+        </li>
+        <li className="flex items-start">
+          <span className="text-gray-500 mr-2">•</span>
+          <span>Damaged product received</span>
+        </li>
+        <li className="flex items-start">
+          <span className="text-gray-500 mr-2">•</span>
+          <span>Customer must report within 48 hours with photos/videos</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
           {/* Contact Section */}
           <div className="mt-12 pt-8 border-t border-gray-200">

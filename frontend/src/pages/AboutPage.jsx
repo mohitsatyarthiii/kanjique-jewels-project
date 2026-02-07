@@ -1,313 +1,296 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { 
-  FiStar, 
-  FiAward, 
-  FiUsers, 
-  FiPackage, 
-  FiShield, 
-} from "react-icons/fi";
-import { 
+  Heart, 
   Sparkles, 
-  Crown, 
-  Gem, 
   Diamond, 
-  Leaf, 
+  Gem, 
+  Crown,
+  Star,
+  Award,
+  Palette,
+  Zap,
+  Eye,
+  CheckCircle,
+  Users,
   Target,
-  
-  Heart,
-  Shield
+  TrendingUp,
+  Clock
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const AboutUs = () => {
   const stats = [
-    { icon: <FiStar />, value: "15+", label: "Years Experience" },
-    { icon: <FiUsers />, value: "50,000+", label: "Happy Customers" },
-    { icon: <FiPackage />, value: "10,000+", label: "Pieces Crafted" },
-    { icon: <FiAward />, value: "25+", label: "Industry Awards" },
+    { icon: <Heart className="w-6 h-6" />, value: "50K+", label: "Happy Customers" },
+    { icon: <Sparkles className="w-6 h-6" />, value: "10K+", label: "Unique Designs" },
+    { icon: <Award className="w-6 h-6" />, value: "15+", label: "Style Collections" },
+    { icon: <TrendingUp className="w-6 h-6" />, value: "98%", label: "Satisfaction" },
   ];
 
   const values = [
     {
-      icon: <Gem className="w-8 h-8" />,
-      title: "Exquisite Craftsmanship",
-      description: "Each piece is handcrafted by master artisans with decades of experience."
+      icon: <Palette className="w-7 h-7" />,
+      title: "Creative Expression",
+      description: "Jewelry as a form of personal art"
     },
     {
-      icon: <Diamond className="w-8 h-8" />,
-      title: "Ethically Sourced",
-      description: "We use only conflict-free diamonds and responsibly sourced materials."
+      icon: <Eye className="w-7 h-7" />,
+      title: "Precision Craft",
+      description: "Meticulous attention to detail"
     },
     {
-      icon: <Leaf className="w-8 h-8" />,
-      title: "Sustainable Luxury",
-      description: "Committed to eco-friendly practices and sustainable production."
-    },
-    {
-      icon: <Heart className="w-8 h-8" />,
+      icon: <Heart className="w-7 h-7" />,
       title: "Customer First",
-      description: "Your satisfaction and trust are our highest priorities."
+      description: "Your vision guides our process"
     },
     {
-      icon: <Shield className="w-8 h-8" />,
-      title: "Lifetime Warranty",
-      description: "All our jewelry comes with lifetime warranty and maintenance."
+      icon: <Sparkles className="w-7 h-7" />,
+      title: "Innovative Design",
+      description: "Pushing creative boundaries"
     },
     {
-      icon: <Target className="w-8 h-8" />,
-      title: "Precision & Detail",
-      description: "Uncompromising attention to detail in every design."
-    },
-  ];
-
-  const team = [
-    {
-      name: "Rohan Sharma",
-      role: "Master Goldsmith",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
-      experience: "25+ years"
+      icon: <Diamond className="w-7 h-7" />,
+      title: "Quality Materials",
+      description: "Premium materials, lasting beauty"
     },
     {
-      name: "Priya Kapoor",
-      role: "Design Director",
-      image: "https://images.unsplash.com/photo-1494790108755-2616b786d4d9?w-400&q=80",
-      experience: "18+ years"
-    },
-    {
-      name: "Vikram Mehta",
-      role: "Diamond Expert",
-      image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w-400&q=80",
-      experience: "22+ years"
-    },
-    {
-      name: "Ananya Reddy",
-      role: "Quality Control Head",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w-400&q=80",
-      experience: "15+ years"
+      icon: <Zap className="w-7 h-7" />,
+      title: "Modern Aesthetics",
+      description: "Contemporary elegance"
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-[#fef8e9]/10 pt-32 pb-40 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-[#f4e6c3]/40 to-[#d4b97d]/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-40 right-10 w-96 h-96 bg-gradient-to-tr from-[#f4e6c3]/30 to-[#b2965a]/10 rounded-full blur-3xl"></div>
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 pt-24 pb-32 relative overflow-hidden">
+      {/* Background Elements - Subtle */}
+      <div className="absolute top-40 left-5 w-64 h-64 bg-gradient-to-br from-purple-100/20 to-pink-100/10 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-60 right-5 w-80 h-80 bg-gradient-to-tr from-blue-100/10 to-cyan-100/5 rounded-full blur-3xl"></div>
+      <div className="absolute top-1/3 left-1/4 w-40 h-40 bg-gradient-to-r from-purple-100/10 to-pink-100/5 rounded-full blur-3xl"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-        {/* Hero Section */}
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 relative z-10">
+        {/* Hero Section - Sleek & Modern */}
         <motion.div 
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-20"
+          className="text-center mb-16"
         >
-          <div className="inline-flex items-center gap-2 mb-6">
-            <span className="w-8 h-px bg-gradient-to-r from-[#b2965a] to-[#d4b97d]"></span>
-            <span className="text-sm font-semibold tracking-widest text-[#b2965a] uppercase">Our Story</span>
-            <span className="w-8 h-px bg-gradient-to-r from-[#d4b97d] to-[#b2965a]"></span>
+          <div className="inline-flex items-center gap-2 mb-4">
+            <span className="w-6 h-px bg-gradient-to-r from-purple-600 to-pink-500"></span>
+            <span className="text-xs font-medium tracking-wider text-gray-500 uppercase">Our Story</span>
+            <span className="w-6 h-px bg-gradient-to-r from-pink-500 to-purple-600"></span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-serif font-bold text-gray-900 mb-6">
-            Crafting Timeless
-            <span className="block text-[#b2965a]">Elegance Since 2008</span>
+          <h1 className="text-3xl md:text-5xl font-medium text-gray-900 mb-4 tracking-tight">
+            Celebrating
+            <span className="block text-purple-600 font-normal mt-1">Individuality</span>
           </h1>
           
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            At Kanjique Jewels, we don't just create jewelry—we craft heirlooms that tell your story. 
-            Each piece is a testament to our passion for perfection and commitment to excellence.
+          <p className="text-gray-600 max-w-2xl mx-auto text-base leading-relaxed">
+            Kanjique Jewels was born out of a passion for crafting exquisite jewelry that celebrates 
+            individuality and self-expression.
           </p>
         </motion.div>
 
-        {/* Hero Image */}
+        {/* Founder Story - Clean Layout */}
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="relative mb-24"
+          transition={{ delay: 0.1 }}
+          className="mb-20"
         >
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-            <img 
-              src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1200&q=80" 
-              alt="Jewelry Workshop" 
-              className="w-full h-[500px] object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-            <div className="absolute bottom-8 left-8 right-8">
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 max-w-md">
-                <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">Where Art Meets Precision</h3>
-                <p className="text-gray-700">Our artisans combine traditional techniques with modern innovation</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div className="order-2 lg:order-1">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-8 h-px bg-purple-600"></div>
+                <h2 className="text-lg font-medium text-gray-700">Our Vision</h2>
+              </div>
+              <h3 className="text-2xl font-normal text-gray-900 mb-6 leading-tight">
+                Established by
+                <span className="block text-purple-600">Kashish Anand</span>
+              </h3>
+              
+              <div className="space-y-4 text-gray-600 text-sm leading-relaxed">
+                <p>
+                  Our brand journey began with a simple yet profound vision - to empower individuals 
+                  to embrace their uniqueness and radiate their inner beauty through stunning, 
+                  custom-made jewelry pieces.
+                </p>
+                <p>
+                  Founded by visionary Kashish Anand, Kanjique represents more than just accessories. 
+                  Each piece is a statement of personal style, a celebration of individuality, and 
+                  an expression of one's authentic self.
+                </p>
+                <p>
+                  We believe that jewelry should tell your story, reflect your personality, and 
+                  enhance your confidence. Every design is created with the intention of making 
+                  you feel special, empowered, and truly yourself.
+                </p>
+              </div>
+            </div>
+            
+            <div className="order-1 lg:order-2 relative">
+              <div className="relative rounded-xl overflow-hidden shadow-lg">
+                <img 
+                  src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&q=80" 
+                  alt="Jewelry Design" 
+                  className="w-full h-[380px] object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              </div>
+              <div className="absolute -bottom-3 -right-3 w-24 h-24 bg-white rounded-xl shadow-lg flex items-center justify-center border border-gray-100">
+                <Crown className="w-10 h-10 text-purple-600" />
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-24">
+        {/* Stats - Minimal */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-20">
           {stats.map((stat, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="text-center p-6 bg-gradient-to-br from-white to-[#fef8e9] rounded-2xl border border-[#f4e6c3] shadow-lg"
+              transition={{ delay: index * 0.05 }}
+              className="text-center p-5 bg-white rounded-xl border border-gray-100 shadow-sm"
             >
-              <div className="text-3xl text-[#b2965a] mb-2">{stat.icon}</div>
-              <div className="text-4xl font-bold text-gray-900 mb-1">{stat.value}</div>
-              <div className="text-gray-600">{stat.label}</div>
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg mb-3">
+                <div className="text-purple-600">{stat.icon}</div>
+              </div>
+              <div className="text-2xl font-light text-gray-900 mb-1">{stat.value}</div>
+              <div className="text-xs text-gray-500 font-medium tracking-wide">{stat.label}</div>
             </motion.div>
           ))}
         </div>
 
-        {/* Our Values */}
-        <div className="mb-24">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-serif font-bold text-gray-900 mb-4">Our Core Values</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">The principles that guide every piece we create</p>
+        {/* Values - Grid Layout */}
+        <div className="mb-20">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 mb-3">
+              <span className="w-4 h-px bg-gray-300"></span>
+              <h2 className="text-base font-medium text-gray-700">Our Values</h2>
+              <span className="w-4 h-px bg-gray-300"></span>
+            </div>
+            <p className="text-gray-500 text-sm max-w-xl mx-auto">
+              Principles that define every creation
+            </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {values.map((value, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="p-8 bg-gradient-to-br from-white to-[#fef8e9] rounded-2xl border border-[#f4e6c3] shadow-lg hover:shadow-xl transition-shadow duration-300 group"
+                transition={{ delay: index * 0.05 }}
+                className="p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 group"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-[#f4e6c3] to-[#fef8e9] rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <div className="text-[#b2965a]">{value.icon}</div>
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg mb-4 group-hover:scale-105 transition-transform duration-300">
+                  <div className="text-purple-600">{value.icon}</div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{value.title}</h3>
-                <p className="text-gray-600">{value.description}</p>
+                <h3 className="text-base font-medium text-gray-900 mb-2">{value.title}</h3>
+                <p className="text-gray-500 text-xs leading-relaxed">{value.description}</p>
               </motion.div>
             ))}
           </div>
         </div>
 
-        {/* Our Process */}
-        <div className="mb-24 bg-gradient-to-r from-[#fef8e9] to-[#f4e6c3] rounded-3xl p-8 md:p-12">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-serif font-bold text-gray-900 mb-4">The Kanjique Process</h2>
-            <p className="text-gray-700">From concept to completion, here's how we create magic</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[
-              { step: "1", title: "Design & Sketch", desc: "Initial concepts and detailed sketches", icon: <Sparkles /> },
-              { step: "2", title: "Material Selection", desc: "Handpicking the finest metals and gems", icon: <Gem /> },
-              { step: "3", title: "Artisan Crafting", desc: "Precision work by master craftsmen", icon: <FiStar /> },
-              { step: "4", title: "Quality Assurance", desc: "Rigorous 7-step quality check", icon: <FiShield /> },
-            ].map((process, index) => (
-              <div key={index} className="text-center">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-2xl font-bold text-[#b2965a]">{process.step}</span>
+        {/* Design Philosophy - Elegant */}
+        <div className="mb-20">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-100 p-8 md:p-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div>
+                <div className="flex items-center gap-3 mb-5">
+                  <Gem className="w-5 h-5 text-purple-600" />
+                  <h2 className="text-lg font-medium text-gray-900">Design Philosophy</h2>
                 </div>
-                <h4 className="text-lg font-bold text-gray-900 mb-2">{process.title}</h4>
-                <p className="text-gray-600 text-sm">{process.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Master Artisans */}
-        <div className="mb-24">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-serif font-bold text-gray-900 mb-4">Meet Our Master Artisans</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">The talented hands behind every masterpiece</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="group"
-              >
-                <div className="relative overflow-hidden rounded-2xl mb-4">
-                  <img 
-                    src={member.image} 
-                    alt={member.name} 
-                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute bottom-4 left-4">
-                    <div className="px-3 py-1 bg-[#b2965a] text-white rounded-full text-sm">
-                      {member.experience}
+                
+                <div className="space-y-4">
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    At Kanjique, we believe that jewelry should be as unique as the person wearing it. 
+                    Our designs are personal statements that reflect individuality and celebrate 
+                    self-expression.
+                  </p>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    We combine contemporary aesthetics with timeless elegance, creating pieces that 
+                    are both modern and enduring. Each collection is thoughtfully curated to offer 
+                    versatility, quality, and style.
+                  </p>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    Our commitment is to provide jewelry that makes you feel confident, beautiful, 
+                    and authentically you. Every Kanjique piece is designed to enhance your 
+                    personal style.
+                  </p>
+                </div>
+                
+                <div className="mt-8 pt-6 border-t border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-purple-600" />
+                      <span className="text-xs text-gray-600">Premium Quality</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-purple-600" />
+                      <span className="text-xs text-gray-600">Modern Designs</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-purple-600" />
+                      <span className="text-xs text-gray-600">Personal Touch</span>
                     </div>
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">{member.name}</h3>
-                <p className="text-[#b2965a] font-medium">{member.role}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* Sustainability */}
-        <div className="mb-24 bg-gradient-to-br from-white to-[#fef8e9] rounded-3xl p-8 md:p-12 border border-[#f4e6c3] shadow-lg">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl font-serif font-bold text-gray-900 mb-6">Our Commitment to Sustainability</h2>
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                We believe luxury should not come at the expense of our planet. That's why we've implemented 
-                eco-friendly practices throughout our production process and use only ethically sourced materials.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  "100% recycled precious metals",
-                  "Conflict-free diamonds certification",
-                  "Solar-powered workshops",
-                  "Zero waste packaging",
-                  "Carbon offset programs"
-                ].map((item, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-[#b2965a] rounded-full flex items-center justify-center">
-                      <FiStar className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-gray-700">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1600267165477-6d4cc741b379?w=800&q=80" 
-                alt="Sustainable Jewelry" 
-                className="rounded-2xl shadow-2xl"
-              />
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-br from-[#f4e6c3] to-[#fef8e9] rounded-2xl border border-[#f4e6c3] flex items-center justify-center shadow-lg">
-                <Leaf className="w-12 h-12 text-[#b2965a]" />
+              </div>
+              
+              <div className="relative">
+                <div className="relative rounded-xl overflow-hidden shadow-lg">
+                  <img 
+                    src="https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&q=80" 
+                    alt="Jewelry Design Process" 
+                    className="w-full h-[300px] object-cover"
+                  />
+                </div>
+                <div className="absolute -bottom-4 -left-4 bg-white px-4 py-2 rounded-lg shadow-md border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-purple-600 fill-current" />
+                    <span className="text-xs font-medium text-gray-700">Handcrafted Excellence</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTA - Sophisticated */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center bg-gradient-to-r from-[#b2965a] to-[#d4b97d] rounded-3xl p-12 shadow-2xl"
+          className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 md:p-10 shadow-xl"
         >
-          <Crown className="w-16 h-16 text-white mx-auto mb-6" />
-          <h2 className="text-4xl font-serif font-bold text-white mb-4">
-            Experience the Kanjique Difference
-          </h2>
-          <p className="text-white/90 text-xl mb-8 max-w-2xl mx-auto">
-            Visit our flagship store or explore our online collection to discover jewelry that tells your story.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/products">
-            <button className="px-8 py-4 bg-white text-[#b2965a] font-bold rounded-xl hover:bg-gray-100 transition-colors">
-              Explore Collection
-            </button>
-            </Link>
-            <Link to="/contact">
-            <button className="px-8 py-4 border-2 border-white text-white font-bold rounded-xl hover:bg-white/10 transition-colors">
-              Book Consultation
-            </button>
-            </Link>
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600/20 to-pink-600/20 rounded-full mb-5">
+              <Diamond className="w-6 h-6 text-white" />
+            </div>
+            
+            <h2 className="text-2xl font-light text-white mb-3">
+              Express Your Unique Style
+            </h2>
+            
+            <p className="text-gray-300 text-sm mb-8 max-w-lg mx-auto leading-relaxed">
+              Discover jewelry that celebrates your individuality and tells your unique story.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link to="/products">
+                <button className="px-6 py-3 bg-white text-gray-900 font-medium text-sm rounded-lg hover:bg-gray-100 transition-colors duration-300 shadow-sm">
+                  Explore Collection
+                </button>
+              </Link>
+              <Link to="/contact">
+                <button className="px-6 py-3 border border-white/30 text-white font-medium text-sm rounded-lg hover:bg-white/10 transition-colors duration-300">
+                  Get In Touch
+                </button>
+              </Link>
+            </div>
           </div>
         </motion.div>
       </div>

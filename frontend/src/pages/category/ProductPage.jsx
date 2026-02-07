@@ -305,7 +305,7 @@ export default function ProductPage() {
   const hasVariants = product.variants && product.variants.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-20">
+    <div className="min-h-screen bg-gray-50 pt-30 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-8">
@@ -633,20 +633,6 @@ export default function ProductPage() {
                 <div>
                   <p className="font-medium text-gray-900">Free Shipping</p>
                   <p className="text-sm text-gray-600">3-5 Days</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <RotateCcw className="w-5 h-5 text-[#b2965a]" />
-                <div>
-                  <p className="font-medium text-gray-900">30-Day Returns</p>
-                  <p className="text-sm text-gray-600">Easy Exchange</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Shield className="w-5 h-5 text-[#b2965a]" />
-                <div>
-                  <p className="font-medium text-gray-900">2-Year Warranty</p>
-                  <p className="text-sm text-gray-600">Free Maintenance</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

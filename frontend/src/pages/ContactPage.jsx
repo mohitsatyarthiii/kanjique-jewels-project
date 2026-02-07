@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
+import emailjs from "@emailjs/browser"; // EmailJS package
 import { 
   FiMail, 
   FiPhone, 
@@ -8,7 +9,8 @@ import {
   FiMessageSquare,
   FiUser,
   FiSend,
-  FiCheckCircle
+  FiCheckCircle,
+  FiAlertCircle
 } from "react-icons/fi";
 import { 
   Mail, 
@@ -33,24 +35,90 @@ const ContactUs = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState("");
+
+  const form = useRef();
+
+  // EmailJS Configuration - Yeh keys tumhe .env file ya config se lena hai
+  const EMAILJS_SERVICE_ID =  "YOUR_SERVICE_ID";
+  const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
+  const EMAILJS_PUBLIC_KEY = "YOUR_PUBLIC_KEY";
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError(""); // Clear error when user starts typing
+  };
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError("Name is required");
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError("Email is required");
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    if (!formData.subject.trim()) {
+      setError("Please select a subject");
+      return false;
+    }
+    if (!formData.message.trim()) {
+      setError("Message is required");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      // EmailJS integration
+      const result = await emailjs.sendForm(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        form.current,
+        EMAILJS_PUBLIC_KEY
+      );
+
+      console.log("Email sent successfully:", result.text);
+      
+      // Success handling
       setIsSubmitting(false);
       setIsSubmitted(true);
-      setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
       
+      // Reset form
+      setFormData({ 
+        name: "", 
+        email: "", 
+        phone: "", 
+        subject: "", 
+        message: "" 
+      });
+
       // Reset success message after 5 seconds
       setTimeout(() => setIsSubmitted(false), 5000);
-    }, 1500);
+
+    } catch (error) {
+      console.error("Email sending failed:", error);
+      setError(
+        error.text || 
+        "Failed to send message. Please try again later or contact us directly via phone."
+      );
+      setIsSubmitting(false);
+    }
   };
 
   const contactInfo = [
@@ -66,18 +134,6 @@ const ContactUs = () => {
       details: ["support@kanjiquejewels.com", "orders@kanjiquejewels.com"],
       description: "Response within 24 hours"
     },
-    {
-      icon: <FiMapPin className="w-6 h-6" />,
-      title: "Flagship Store",
-      details: ["123 Jewel Street", "Mumbai 400001, India"],
-      description: "By appointment only"
-    },
-    {
-      icon: <FiClock className="w-6 h-6" />,
-      title: "Business Hours",
-      details: ["Mon - Sat: 10:00 AM - 7:00 PM", "Sunday: 11:00 AM - 6:00 PM"],
-      description: "Festive hours may vary"
-    }
   ];
 
   const reasons = [
@@ -236,7 +292,21 @@ const ContactUs = () => {
                 </motion.div>
               )}
 
-              <form onSubmit={handleSubmit}>
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3"
+                >
+                  <FiAlertCircle className="w-5 h-5 text-red-600" />
+                  <div>
+                    <p className="font-medium text-red-800">{error}</p>
+                  </div>
+                </motion.div>
+              )}
+
+              <form ref={form} onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   {/* Name Field */}
                   <div>
@@ -252,7 +322,6 @@ const ContactUs = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        required
                         className="w-full px-4 py-3 pl-10 bg-white border border-gray-300 rounded-xl focus:border-[#b2965a] focus:ring-2 focus:ring-[#f4e6c3] outline-none transition-all"
                         placeholder="Enter your full name"
                       />
@@ -274,7 +343,6 @@ const ContactUs = () => {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        required
                         className="w-full px-4 py-3 pl-10 bg-white border border-gray-300 rounded-xl focus:border-[#b2965a] focus:ring-2 focus:ring-[#f4e6c3] outline-none transition-all"
                         placeholder="your@email.com"
                       />
@@ -316,7 +384,6 @@ const ContactUs = () => {
                         name="subject"
                         value={formData.subject}
                         onChange={handleChange}
-                        required
                         className="w-full px-4 py-3 pl-10 bg-white border border-gray-300 rounded-xl focus:border-[#b2965a] focus:ring-2 focus:ring-[#f4e6c3] outline-none transition-all appearance-none"
                       >
                         <option value="">Select a subject</option>
@@ -350,12 +417,11 @@ const ContactUs = () => {
                       name="message"
                       value={formData.message}
                       onChange={handleChange}
-                      required
-                      rows={6}
+                      rows={3}
                       className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#b2965a] focus:ring-2 focus:ring-[#f4e6c3] outline-none transition-all resize-none"
                       placeholder="Please share your thoughts, questions, or requirements..."
                     />
-                    <MessageSquare className="absolute top-3 left-3 w-4 h-4 text-gray-400" />
+                    
                   </div>
                 </div>
 
@@ -407,10 +473,6 @@ const ContactUs = () => {
                     a: "Yes! We provide virtual consultations via Zoom or Google Meet for your convenience."
                   },
                   {
-                    q: "What is your return policy?",
-                    a: "We offer a 30-day return policy on all standard items. Custom pieces are non-returnable."
-                  },
-                  {
                     q: "Can I customize an existing design?",
                     a: "Absolutely! We specialize in custom modifications to make each piece uniquely yours."
                   }
@@ -426,60 +488,7 @@ const ContactUs = () => {
         </div>
 
         {/* Map Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-20"
-        >
-          <div className="text-center mb-8">
-            <h3 className="text-3xl font-serif font-bold text-gray-900 mb-3">Find Our Store</h3>
-            <p className="text-gray-600">Visit us at our flagship location in Mumbai</p>
-          </div>
-          
-          <div className="bg-gradient-to-br from-white to-[#fef8e9] rounded-2xl border border-[#f4e6c3] p-8 shadow-xl overflow-hidden">
-            <div className="flex flex-col lg:flex-row gap-8">
-              <div className="lg:w-1/3">
-                <h4 className="text-xl font-bold text-gray-900 mb-4">Store Details</h4>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 text-[#b2965a] mt-0.5" />
-                    <div>
-                      <p className="font-medium text-gray-900">123 Jewel Street, Fort</p>
-                      <p className="text-gray-600">Mumbai 400001, Maharashtra, India</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-[#b2965a]" />
-                    <div>
-                      <p className="font-medium text-gray-900">Mon - Sat: 10:00 AM - 7:00 PM</p>
-                      <p className="text-gray-600">Sunday: 11:00 AM - 6:00 PM</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-[#b2965a]" />
-                    <p className="font-medium text-gray-900">+91 22 1234 5678</p>
-                  </div>
-                </div>
-                
-                <button className="mt-8 w-full py-3 bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white rounded-xl font-bold hover:from-[#8c703f] hover:to-[#b2965a] transition-all">
-                  Get Directions
-                </button>
-              </div>
-              
-              <div className="lg:w-2/3 relative rounded-xl overflow-hidden h-80">
-                <img 
-                  src="https://images.unsplash.com/photo-1579546929662-711aa81148cf?w=800&q=80" 
-                  alt="Store Location Map" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-4 right-4 bg-white px-4 py-2 rounded-lg shadow-lg">
-                  <p className="font-medium text-gray-900">📍 Fort, Mumbai</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+       
       </div>
     </div>
   );

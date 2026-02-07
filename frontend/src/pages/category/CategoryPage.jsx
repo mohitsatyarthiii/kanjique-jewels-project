@@ -697,7 +697,7 @@ export default function CategoryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-20">
+    <div className="min-h-screen bg-gray-50 pt-30 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -764,45 +764,7 @@ export default function CategoryPage() {
                 </div>
               </div>
 
-              {/* Price Range - Professional Slider */}
-              <div className="mb-8">
-                <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-700">₹{priceFilter[0].toLocaleString()}</span>
-                    <span className="font-medium text-gray-700">₹{priceFilter[1].toLocaleString()}</span>
-                  </div>
-                  <div className="relative pt-1">
-                    <div className="h-2 bg-gray-200 rounded-full">
-                      <div 
-                        className="absolute h-2 bg-[#b2965a] rounded-full"
-                        style={{
-                          left: `${((priceFilter[0] - (availableFilters.priceRange.minPrice || 0)) / 
-                                 ((availableFilters.priceRange.maxPrice || 1000000) - (availableFilters.priceRange.minPrice || 0))) * 100}%`,
-                          right: `${100 - ((priceFilter[1] - (availableFilters.priceRange.minPrice || 0)) / 
-                                  ((availableFilters.priceRange.maxPrice || 1000000) - (availableFilters.priceRange.minPrice || 0))) * 100}%`
-                        }}
-                      ></div>
-                    </div>
-                    <input
-                      type="range"
-                      min={availableFilters.priceRange.minPrice || 0}
-                      max={availableFilters.priceRange.maxPrice || 1000000}
-                      value={priceFilter[0]}
-                      onChange={(e) => handlePriceChange(Number(e.target.value), priceFilter[1])}
-                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-lg"
-                    />
-                    <input
-                      type="range"
-                      min={availableFilters.priceRange.minPrice || 0}
-                      max={availableFilters.priceRange.maxPrice || 1000000}
-                      value={priceFilter[1]}
-                      onChange={(e) => handlePriceChange(priceFilter[0], Number(e.target.value))}
-                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-lg"
-                    />
-                  </div>
-                </div>
-              </div>
+              
 
               {/* Colors - Professional Color Selector */}
               <div className="mb-8">
