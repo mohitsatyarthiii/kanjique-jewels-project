@@ -19,14 +19,10 @@ api.interceptors.response.use(
       // clear local user state once
       localStorage.removeItem("user");
 
-      // Redirect based on the failing endpoint:
-      // - admin API errors -> admin login
-      // - other APIs -> normal user login
-      if (url.includes("/api/admin")) {
-        window.location.href = "/admin";
-      } else {
-        window.location.href = "/login";
-      }
+      // IMPORTANT: do NOT perform automatic navigation here. Let UI-level
+      // route guards (ProtectedRoute/AdminProtectedRoute) handle redirects
+      // after auth state resolves. Automatic redirects cause homepage load
+      // to be interrupted when background API calls return 401.
     }
 
     return Promise.reject(error);
