@@ -181,10 +181,9 @@ export const getProducts = async (req, res) => {
     // Build filter query
     const filter = {};
     
-    // For admin, show all products by default (including inactive)
-    // Only filter by status if explicitly requested
-    if (req.query.isActive !== undefined) {
-      filter.isActive = req.query.isActive === 'true';
+    // Filter by active status unless specifically asking for inactive
+    if (isActive !== 'false') {
+      filter.isActive = isActive === 'true' ? true : true;
     }
     
     if (category) filter.category = category;
