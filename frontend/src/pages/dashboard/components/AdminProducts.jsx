@@ -31,7 +31,6 @@ const MAIN_CATEGORIES = [
   { label: "Bracelets", value: "Bracelets" },
   { label: "Pendants", value: "Pendants" },
   { label: "Anklets", value: "Anklets" },
-  { label: "Chains", value: "Chains" },
   { label: "Mang Tikka", value: "Mang Tikka" },
   { label: "Nath", value: "Nath" }
   
@@ -107,6 +106,22 @@ const SUB_CATEGORIES = {
 
 // Available Sizes (for Rings and Bangles only)
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'Free Size'];
+
+// Available Colors with hex codes
+const AVAILABLE_COLORS = [
+  { name: "Gold", hexCode: "#FFD700" },
+  { name: "Rose Gold", hexCode: "#B76E79" },
+  { name: "White Gold", hexCode: "#F5F5F5" },
+  { name: "Silver", hexCode: "#C0C0C0" },
+  { name: "Platinum", hexCode: "#E5E4E2" },
+  { name: "Diamond White", hexCode: "#FFFFFF" },
+  { name: "Ruby Red", hexCode: "#E0115F" },
+  { name: "Emerald Green", hexCode: "#50C878" },
+  { name: "Sapphire Blue", hexCode: "#0F52BA" },
+  { name: "Black", hexCode: "#000000" },
+  { name: "Brown", hexCode: "#8B4513" },
+  { name: "Pink", hexCode: "#FFC0CB" }
+];
 
 // Ring sizes in numbers (for Rings category)
 const RING_SIZES = ['Size 5', 'Size 6', 'Size 7', 'Size 8', 'Size 9', 'Size 10', 'Size 11', 'Size 12'];
@@ -280,6 +295,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
     metaDescription: "",
     isFeatured: false,
     isActive: true,
+    availableColors: [],
     variants: []
   });
   
@@ -308,6 +324,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
         metaDescription: initialProduct.metaDescription || "",
         isFeatured: initialProduct.isFeatured || false,
         isActive: initialProduct.isActive !== false,
+        availableColors: initialProduct.availableColors || [],
         variants: initialProduct.variants || []
       });
       
@@ -335,6 +352,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
       metaDescription: "",
       isFeatured: false,
       isActive: true,
+      availableColors: [],
       variants: []
     });
     setMainImages([]);
@@ -424,10 +442,15 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
       
       // Add basic form fields
       Object.keys(formData).forEach(key => {
-        if (key !== 'variants') {
+        if (key !== 'variants' && key !== 'availableColors') {
           formDataToSend.append(key, formData[key]);
         }
       });
+
+      // Add availableColors as JSON string
+      if (formData.availableColors.length > 0) {
+        formDataToSend.append('availableColors', JSON.stringify(formData.availableColors));
+      }
 
       // Add variants as JSON string
       if (variants.length > 0) {
@@ -589,6 +612,51 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
                 />
               </div>
+            </div>
+
+            {/* Colors Selection */}
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Available Colors for Product
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {AVAILABLE_COLORS.map(color => (
+                  <label
+                    key={color.name}
+                    className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.availableColors.some(c => c.name === color.name)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData(prev => ({
+                            ...prev,
+                            availableColors: [...prev.availableColors, color]
+                          }));
+                        } else {
+                          setFormData(prev => ({
+                            ...prev,
+                            availableColors: prev.availableColors.filter(c => c.name !== color.name)
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 text-[#b2965a] rounded"
+                    />
+                    <div className="flex items-center gap-2 flex-1">
+                      <div
+                        className="w-6 h-6 rounded-full border border-gray-300"
+                        style={{ backgroundColor: color.hexCode }}
+                        title={color.hexCode}
+                      />
+                      <span className="text-sm text-gray-700">{color.name}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Select which colors this product is available in. These colors will also appear in product variants.
+              </p>
             </div>
 
             {/* Description */}

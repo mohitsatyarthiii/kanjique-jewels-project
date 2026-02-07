@@ -16,6 +16,7 @@ export const createProduct = async (req, res) => {
       gender,
       brand, 
       variants,
+      availableColors,
       isFeatured,
       metaTitle,
       metaDescription
@@ -60,6 +61,16 @@ export const createProduct = async (req, res) => {
         return res.status(400).json({ 
           error: "Invalid variants format" 
         });
+      }
+    }
+
+    // Parse availableColors if provided as string
+    let parsedColors = [];
+    if (availableColors) {
+      try {
+        parsedColors = typeof availableColors === 'string' ? JSON.parse(availableColors) : availableColors;
+      } catch (err) {
+        parsedColors = [];
       }
     }
 
@@ -123,6 +134,7 @@ export const createProduct = async (req, res) => {
       })),
       // If admin provided totalStock (product-level), save it so model can respect it when no variants
       totalStock: req.body.totalStock !== undefined ? parseInt(req.body.totalStock) : undefined,
+      availableColors: parsedColors.length > 0 ? parsedColors : undefined,
       metaTitle: metaTitle || title,
       metaDescription: metaDescription || shortDescription || description?.substring(0, 160),
       isFeatured: isFeatured === 'true' || isFeatured === true,
@@ -523,6 +535,17 @@ export const updateProduct = async (req, res) => {
     if (updates.baseSalePrice) updates.baseSalePrice = parseFloat(updates.baseSalePrice);
     if (updates.overallDiscountPercentage) updates.overallDiscountPercentage = parseFloat(updates.overallDiscountPercentage);
     if (updates.totalStock !== undefined) updates.totalStock = parseInt(updates.totalStock);
+    
+    // Parse availableColors if provided as string
+    if (updates.availableColors) {
+      try {
+        updates.availableColors = typeof updates.availableColors === 'string' 
+          ? JSON.parse(updates.availableColors) 
+          : updates.availableColors;
+      } catch (err) {
+        updates.availableColors = [];
+      }
+    }
     
     // Parse variants if provided
     if (updates.variants) {

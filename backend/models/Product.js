@@ -75,14 +75,25 @@ productSchema.pre('save', function(next) {
     this.minPrice = Math.min(...prices);
     this.maxPrice = Math.max(...prices);
     
-    // Update available colors
-    const uniqueColors = [...new Set(
+    // Update available colors from variants
+    const variantColors = [...new Set(
       this.variants.map(v => JSON.stringify({ 
         name: v.color.name, 
         hexCode: v.color.hexCode 
       }))
     )].map(str => JSON.parse(str));
-    this.availableColors = uniqueColors;
+    
+    // Merge with admin-provided colors if they exist
+    if (this.availableColors && this.availableColors.length > 0) {
+      const colorMap = new Map();
+      // Add variant colors
+      variantColors.forEach(c => colorMap.set(c.name, c));
+      // Add admin-provided colors
+      this.availableColors.forEach(c => colorMap.set(c.name, c));
+      this.availableColors = Array.from(colorMap.values());
+    } else {
+      this.availableColors = variantColors;
+    }
     
     // Update available sizes
     const uniqueSizes = [...new Set(this.variants.map(v => v.size).filter(Boolean))];
