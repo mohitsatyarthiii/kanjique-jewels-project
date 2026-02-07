@@ -9,18 +9,13 @@ import {
   FiPlus, 
   FiX,
   FiSave,
-  FiImage,
   FiCheck,
   FiEye,
   FiEyeOff,
-  FiPackage,
-  FiShoppingBag,
-  FiDollarSign,
-  FiPercent,
   FiUpload,
-  FiLayers,
-  FiGrid
+  FiRefreshCw
 } from "react-icons/fi";
+import { toast } from "react-toastify"; // Optional: for better notifications
 
 // Categories and Subcategories (Jewelry focused)
 const MAIN_CATEGORIES = [
@@ -33,11 +28,8 @@ const MAIN_CATEGORIES = [
   { label: "Anklets", value: "Anklets" },
   { label: "Mang Tikka", value: "Mang Tikka" },
   { label: "Nath", value: "Nath" }
-  
 ];
 
-
-// Add empty/default subcategories for newly introduced categories
 const SUB_CATEGORIES = {
   "Rings": [
     "Artificial Rings",
@@ -46,66 +38,52 @@ const SUB_CATEGORIES = {
     "Stone Rings",
     "Bridal Rings"
   ],
-
   "Bangles": [
     "Artificial Bangles",
     "Imitation Bangles",
     "Kids Bangles",
     "Traditional Bangles"
   ],
-
   "Necklaces": [
     "Artificial Necklaces",
     "Imitation Necklaces",
     "Chokers",
     "Bridal Necklaces"
   ],
-
   "Earrings": [
     "Stud Earrings",
     "Hoop Earrings",
     "Jhumkas",
     "Artificial Earrings"
   ],
-
   "Bracelets": [
     "Artificial Bracelets",
     "Imitation Bracelets",
     "Cuffs",
     "Chain Bracelets"
   ],
-
   "Pendants": [
     "Artificial Pendants",
     "Imitation Pendants",
     "Religious Pendants",
     "Heart Pendants"
   ],
-
-  // Existing + cleaned category
   "Anklets": [
     "Artificial Anklets",
     "Imitation Anklets",
     "Beaded Anklets"
   ],
-
-  // ✅ New categories (same layout style)
   "Mang Tikka": [
     "Bridal Mang Tikka",
     "Traditional Mang Tikka",
     "Stone Mang Tikka"
   ],
-
   "Nath": [
     "Traditional Nath",
     "Bridal Nath",
     "Stone Nath"
   ]
 };
-
-
-// Available Sizes (for Rings and Bangles only)
-const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'Free Size'];
 
 // Available Colors with hex codes
 const AVAILABLE_COLORS = [
@@ -123,10 +101,10 @@ const AVAILABLE_COLORS = [
   { name: "Pink", hexCode: "#FFC0CB" }
 ];
 
-// Ring sizes in numbers (for Rings category)
+// Ring sizes in numbers
 const RING_SIZES = ['Size 5', 'Size 6', 'Size 7', 'Size 8', 'Size 9', 'Size 10', 'Size 11', 'Size 12'];
 
-// Bangle sizes in numbers (for Bangles category)
+// Bangle sizes in numbers
 const BANGLE_SIZES = ['2.0"', '2.1"', '2.2"', '2.3"', '2.4"', '2.5"', '2.6"', '2.7"'];
 
 // Gender Options
@@ -145,13 +123,12 @@ const getSizesForCategory = (category) => {
     case 'Bangles':
       return BANGLE_SIZES;
     default:
-      return []; // No sizes for other categories
+      return [];
   }
 };
 
 // Variant Component
 const VariantForm = ({ variant, index, onChange, onRemove, category }) => {
-  const [showSizeOptions, setShowSizeOptions] = useState(false);
   const sizes = getSizesForCategory(category);
   
   return (
@@ -197,19 +174,17 @@ const VariantForm = ({ variant, index, onChange, onRemove, category }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Size *
             </label>
-            <div className="relative">
-              <select
-                value={variant.size || ""}
-                onChange={(e) => onChange(index, 'size', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
-                required
-              >
-                <option value="">Select Size</option>
-                {sizes.map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={variant.size || ""}
+              onChange={(e) => onChange(index, 'size', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
+              required
+            >
+              <option value="">Select Size</option>
+              {sizes.map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -308,6 +283,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
   // Initialize form
   useEffect(() => {
     if (initialProduct) {
+      // Transform backend data for form
       setFormData({
         title: initialProduct.title || "",
         description: initialProduct.description || "",
@@ -454,7 +430,13 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
 
       // Add variants as JSON string
       if (variants.length > 0) {
-        formDataToSend.append('variants', JSON.stringify(variants));
+        // Ensure variant prices are set properly
+        const finalVariants = variants.map(variant => ({
+          ...variant,
+          price: variant.price || formData.basePrice,
+          stockQuantity: variant.stockQuantity || 0
+        }));
+        formDataToSend.append('variants', JSON.stringify(finalVariants));
       }
 
       // Add main images
@@ -462,25 +444,39 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
         formDataToSend.append("mainImages", image);
       });
 
+      // Add replaceImages flag if editing
+      if (initialProduct && mainImages.length > 0) {
+        formDataToSend.append("replaceImages", "true");
+      }
+
       let response;
-      const apiUrl = initialProduct 
-        ? `/api/admin/products/${initialProduct._id}`
-        : '/api/admin/products';
-
-      const method = initialProduct ? 'put' : 'post';
       
-      response = await api[method](
-        apiUrl,
-        formDataToSend,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
+      if (initialProduct) {
+        // UPDATE existing product
+        response = await api.put(
+          `/api/products/${initialProduct._id}`,
+          formDataToSend,
+          { headers: { "Content-Type": "multipart/form-data" } }
+        );
+      } else {
+        // CREATE new product
+        response = await api.post(
+          '/api/products',
+          formDataToSend,
+          { headers: { "Content-Type": "multipart/form-data" } }
+        );
+      }
 
-      onSaved(response.data.product);
-      onClose();
-      alert(initialProduct ? "Product updated successfully!" : "Product created successfully!");
+      if (response.data.success) {
+        onSaved(response.data.product);
+        onClose();
+        alert(initialProduct ? "Product updated successfully!" : "Product created successfully!");
+      } else {
+        throw new Error(response.data.error || "Failed to save product");
+      }
     } catch (error) {
       console.error("Error saving product:", error);
-      alert(error.response?.data?.error || "Failed to save product. Please check all required fields.");
+      alert(error.response?.data?.error || error.message || "Failed to save product. Please check all required fields.");
     } finally {
       setLoading(false);
     }
@@ -491,7 +487,6 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-bold text-gray-900">
             {initialProduct ? "Edit Product" : "Add New Product"}
@@ -501,10 +496,8 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-80px)] p-4">
           <div className="space-y-4">
-            {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -559,7 +552,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                   value={formData.subCategory}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
-                  
+                  required
                 >
                   {SUB_CATEGORIES[formData.category]?.map(subCat => (
                     <option key={subCat} value={subCat}>{subCat}</option>
@@ -596,6 +589,21 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sale Price (₹)
+                </label>
+                <input
+                  type="number"
+                  name="baseSalePrice"
+                  min="0"
+                  step="0.01"
+                  value={formData.baseSalePrice}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
                 />
               </div>
 
@@ -654,9 +662,6 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                   </label>
                 ))}
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Select which colors this product is available in. These colors will also appear in product variants.
-              </p>
             </div>
 
             {/* Description */}
@@ -670,6 +675,21 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                 onChange={handleInputChange}
                 rows="3"
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none resize-none"
+              />
+            </div>
+
+            {/* Short Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Short Description
+              </label>
+              <textarea
+                name="shortDescription"
+                value={formData.shortDescription}
+                onChange={handleInputChange}
+                rows="2"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none resize-none"
+                placeholder="Brief description for product listings"
               />
             </div>
 
@@ -808,7 +828,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
               ) : (
                 <span className="flex items-center gap-2">
                   <FiSave className="w-4 h-4" />
-                  {initialProduct ? "Update" : "Save"}
+                  {initialProduct ? "Update Product" : "Create Product"}
                 </span>
               )}
             </button>
@@ -829,18 +849,31 @@ const AdminProducts = () => {
   const [statusFilter, setStatusFilter] = useState("active");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0); // For forcing refresh
 
+  // Fetch products on component mount and when refreshKey changes
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [refreshKey]);
 
   const fetchProducts = async () => {
+    setLoading(true);
     try {
-      const res = await api.get("/api/admin/products");
-      setProducts(res.data.products || []);
+      // Using the admin products endpoint
+      const res = await api.get("/api/products", {
+        params: {
+          isActive: statusFilter === "all" ? undefined : statusFilter === "active"
+        }
+      });
+      
+      if (res.data.success) {
+        setProducts(res.data.products || []);
+      } else {
+        throw new Error(res.data.error || "Failed to load products");
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
-      alert("Failed to load products");
+      alert(error.response?.data?.error || error.message || "Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -848,47 +881,66 @@ const AdminProducts = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
+    
     try {
-      await api.delete(`/api/products/admin/products/${id}`);
-      setProducts(prev => prev.filter(p => p._id !== id));
-      alert("Product deleted successfully!");
+      // Soft delete endpoint
+      const res = await api.delete(`/api/products/${id}`);
+      
+      if (res.data.success) {
+        // Remove from local state
+        setProducts(prev => prev.filter(p => p._id !== id));
+        alert("Product deleted successfully!");
+      }
     } catch (error) {
       console.error("Delete error:", error);
-      alert("Failed to delete product");
+      alert(error.response?.data?.error || "Failed to delete product");
     }
   };
 
   const handleToggleStatus = async (id, currentStatus) => {
     try {
-      await api.patch(`/api/admin/products/${id}/toggle-status`);
-      setProducts(prev => prev.map(p => 
-        p._id === id ? { ...p, isActive: !currentStatus } : p
-      ));
+      const res = await api.patch(`/api/products/${id}/toggle-status`);
+      
+      if (res.data.success) {
+        // Update local state
+        setProducts(prev => prev.map(p => 
+          p._id === id ? { ...p, isActive: !currentStatus } : p
+        ));
+      }
     } catch (error) {
       console.error("Toggle status error:", error);
+      alert("Failed to toggle product status");
     }
   };
 
   const handleToggleFeatured = async (id, currentFeatured) => {
     try {
-      await api.patch(`/api/admin/products/${id}/toggle-featured`);
-      setProducts(prev => prev.map(p => 
-        p._id === id ? { ...p, isFeatured: !currentFeatured } : p
-      ));
+      const res = await api.patch(`/api/products/${id}/toggle-featured`);
+      
+      if (res.data.success) {
+        // Update local state
+        setProducts(prev => prev.map(p => 
+          p._id === id ? { ...p, isFeatured: !currentFeatured } : p
+        ));
+      }
     } catch (error) {
       console.error("Toggle featured error:", error);
+      alert("Failed to toggle featured status");
     }
   };
 
   const handleProductSaved = (savedProduct) => {
     if (editingProduct) {
+      // Update existing product
       setProducts(prev => prev.map(p => 
         p._id === savedProduct._id ? savedProduct : p
       ));
     } else {
+      // Add new product at the beginning
       setProducts(prev => [savedProduct, ...prev]);
     }
     resetModal();
+    setRefreshKey(prev => prev + 1); // Refresh data
   };
 
   const resetModal = () => {
@@ -906,11 +958,12 @@ const AdminProducts = () => {
     setModalOpen(true);
   };
 
-  // Filter products
+  // Filter products based on search and filters
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.title?.toLowerCase().includes(search.toLowerCase()) ||
-                         product.description?.toLowerCase().includes(search.toLowerCase()) ||
-                         product.brand?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = search === "" || 
+      product.title?.toLowerCase().includes(search.toLowerCase()) ||
+      product.description?.toLowerCase().includes(search.toLowerCase()) ||
+      product.brand?.toLowerCase().includes(search.toLowerCase());
     
     const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
     const matchesStock = stockFilter === "all" || 
@@ -923,53 +976,70 @@ const AdminProducts = () => {
     return matchesSearch && matchesCategory && matchesStock && matchesStatus;
   });
 
+  // Get unique categories from products
   const categories = ["all", ...new Set(products.map(p => p.category).filter(Boolean))];
+
+  // Calculate stats
+  const totalProducts = filteredProducts.length;
+  const inStockCount = filteredProducts.filter(p => p.inStock).length;
+  const activeCount = filteredProducts.filter(p => p.isActive).length;
+  const featuredCount = filteredProducts.filter(p => p.isFeatured).length;
 
   return (
     <AdminLayout>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-          <p className="text-gray-600">Manage your product catalog</p>
+          <h1 className="text-2xl font-bold text-gray-900">Products Management</h1>
+          <p className="text-gray-600">Manage your jewelry product catalog</p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 bg-[#b2965a] text-white px-4 py-2 rounded hover:bg-[#9c8146]"
-        >
-          <FiPlus className="w-4 h-4" /> Add Product
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setRefreshKey(prev => prev + 1)}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+            title="Refresh products"
+          >
+            <FiRefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+          <button
+            onClick={openAddModal}
+            className="flex items-center gap-2 bg-[#b2965a] text-white px-4 py-2 rounded hover:bg-[#9c8146]"
+          >
+            <FiPlus className="w-4 h-4" /> Add Product
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded border p-4">
+        <div className="bg-white rounded-lg border p-4 shadow-sm">
           <p className="text-sm text-gray-600">Total Products</p>
-          <p className="text-2xl font-bold">{filteredProducts.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{totalProducts}</p>
         </div>
-        <div className="bg-white rounded border p-4">
+        <div className="bg-white rounded-lg border p-4 shadow-sm">
           <p className="text-sm text-gray-600">In Stock</p>
-          <p className="text-2xl font-bold">{filteredProducts.filter(p => p.inStock).length}</p>
+          <p className="text-2xl font-bold text-green-600">{inStockCount}</p>
         </div>
-        <div className="bg-white rounded border p-4">
+        <div className="bg-white rounded-lg border p-4 shadow-sm">
           <p className="text-sm text-gray-600">Active</p>
-          <p className="text-2xl font-bold">{filteredProducts.filter(p => p.isActive).length}</p>
+          <p className="text-2xl font-bold text-blue-600">{activeCount}</p>
         </div>
-        <div className="bg-white rounded border p-4">
+        <div className="bg-white rounded-lg border p-4 shadow-sm">
           <p className="text-sm text-gray-600">Featured</p>
-          <p className="text-2xl font-bold">{filteredProducts.filter(p => p.isFeatured).length}</p>
+          <p className="text-2xl font-bold text-yellow-600">{featuredCount}</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded border p-4 mb-6">
+      {/* Filters Section */}
+      <div className="bg-white rounded-lg border p-4 mb-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div className="md:col-span-2">
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="Search by title, description, or brand..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:border-[#b2965a] focus:ring-1 focus:ring-[#b2965a] outline-none"
@@ -1018,26 +1088,27 @@ const AdminProducts = () => {
 
       {/* Products Table */}
       {loading ? (
-        <div className="bg-white rounded border p-8 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#b2965a]"></div>
-          <p className="text-gray-500 mt-2">Loading products...</p>
+        <div className="bg-white rounded-lg border p-8 text-center shadow-sm">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#b2965a]"></div>
+          <p className="text-gray-500 mt-4">Loading products...</p>
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="bg-white rounded border p-8 text-center">
-          <p className="text-lg font-medium text-gray-900">No products found</p>
-          <p className="text-gray-500">Try adjusting your search or filters</p>
+        <div className="bg-white rounded-lg border p-8 text-center shadow-sm">
+          <div className="text-gray-400 mb-4 text-4xl">📦</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+          <p className="text-gray-500 mb-4">Try adjusting your search or filters</p>
           <button
             onClick={openAddModal}
-            className="mt-4 text-[#b2965a] hover:text-[#8c703f]"
+            className="text-[#b2965a] hover:text-[#8c703f] font-medium"
           >
-            Add your first product
+            + Add your first product
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded border overflow-hidden">
+        <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Product</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Category</th>
@@ -1049,82 +1120,105 @@ const AdminProducts = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredProducts.map(product => (
-                  <tr key={product._id} className="hover:bg-gray-50">
+                  <tr key={product._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                          <img 
-                            src={product.mainImages?.[0]?.url || 'https://via.placeholder.com/48'} 
-                            alt={product.title}
-                            className="w-full h-full object-cover"
-                          />
+                        <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 border">
+                          {product.mainImages?.[0]?.url ? (
+                            <img 
+                              src={product.mainImages[0].url} 
+                              alt={product.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://via.placeholder.com/48/cccccc/ffffff?text=No+Image';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
+                              <FiImage className="w-6 h-6" />
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{product.title}</p>
-                          <p className="text-sm text-gray-500">{product.brand}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{product.title}</p>
+                          <p className="text-sm text-gray-500 truncate">{product.brand || "No brand"}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Created: {new Date(product.createdAt).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <div>
-                        <span className="text-sm text-gray-700">{product.category}</span>
-                        <p className="text-xs text-gray-500">{product.subCategory}</p>
+                        <span className="inline-block px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
+                          {product.category}
+                        </span>
+                        <p className="text-xs text-gray-500 mt-1 truncate">{product.subCategory}</p>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <div>
                         {product.baseSalePrice ? (
                           <>
-                            <p className="font-bold text-gray-900">₹{product.baseSalePrice}</p>
-                            <p className="text-sm text-gray-500 line-through">₹{product.basePrice}</p>
+                            <p className="font-bold text-gray-900">₹{product.baseSalePrice.toLocaleString()}</p>
+                            <p className="text-sm text-gray-500 line-through">₹{product.basePrice.toLocaleString()}</p>
                           </>
                         ) : (
-                          <p className="font-bold text-gray-900">₹{product.basePrice}</p>
+                          <p className="font-bold text-gray-900">₹{product.basePrice?.toLocaleString() || "0"}</p>
                         )}
-                        <p className="text-xs text-gray-500">{product.variants?.length || 0} variants</p>
+                        <p className="text-xs text-gray-500">
+                          {product.variants?.length || 0} variant{product.variants?.length !== 1 ? 's' : ''}
+                        </p>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           product.inStock 
                             ? 'bg-green-100 text-green-700' 
                             : 'bg-red-100 text-red-700'
                         }`}>
                           {product.inStock ? 'In Stock' : 'Out of Stock'}
                         </span>
-                        <p className="text-xs text-gray-500 mt-1">{product.totalStock || 0} units</p>
+                        <p className="text-xs text-gray-500">
+                          {product.totalStock || 0} units total
+                        </p>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleToggleStatus(product._id, product.isActive)}
-                            className={`p-1 rounded ${
+                            className={`p-1.5 rounded-full transition-colors ${
                               product.isActive 
-                                ? 'text-green-600 hover:bg-green-50' 
-                                : 'text-gray-600 hover:bg-gray-50'
+                                ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                             title={product.isActive ? "Deactivate" : "Activate"}
                           >
                             {product.isActive ? <FiEye className="w-4 h-4" /> : <FiEyeOff className="w-4 h-4" />}
                           </button>
-                          <span className="text-sm">{product.isActive ? 'Active' : 'Inactive'}</span>
+                          <span className={`text-sm ${product.isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                            {product.isActive ? 'Active' : 'Inactive'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleToggleFeatured(product._id, product.isFeatured)}
-                            className={`p-1 rounded ${
+                            className={`p-1.5 rounded-full transition-colors ${
                               product.isFeatured 
-                                ? 'text-yellow-600 hover:bg-yellow-50' 
-                                : 'text-gray-400 hover:bg-gray-50'
+                                ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                             }`}
                             title={product.isFeatured ? "Remove from featured" : "Add to featured"}
                           >
                             <FiCheck className="w-4 h-4" />
                           </button>
-                          <span className="text-sm">{product.isFeatured ? 'Featured' : 'Regular'}</span>
+                          <span className={`text-sm ${product.isFeatured ? 'text-yellow-600' : 'text-gray-500'}`}>
+                            {product.isFeatured ? 'Featured' : 'Regular'}
+                          </span>
                         </div>
                       </div>
                     </td>
@@ -1132,15 +1226,15 @@ const AdminProducts = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={() => openEditModal(product)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                          title="Edit"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Edit Product"
                         >
                           <FiEdit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(product._id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded"
-                          title="Delete"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Delete Product"
                         >
                           <FiTrash2 className="w-4 h-4" />
                         </button>
@@ -1150,6 +1244,18 @@ const AdminProducts = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+          
+          {/* Table Footer */}
+          <div className="px-4 py-3 border-t bg-gray-50">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-600">
+                Showing <span className="font-medium">{filteredProducts.length}</span> of <span className="font-medium">{products.length}</span> products
+              </p>
+              <div className="text-sm text-gray-600">
+                Last updated: {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              </div>
+            </div>
           </div>
         </div>
       )}

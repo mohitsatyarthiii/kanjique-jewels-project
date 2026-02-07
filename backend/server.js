@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-import productRoutes from "./routes/adminProductRoutes.js";
+import adminProductRoutes from "./routes/adminProductRoutes.js";
 import productsRoutes from "./routes/productRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
@@ -52,8 +52,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api", productRoutes);
-app.use("/api", productsRoutes);
+app.use("/api", adminProductRoutes);
 app.use("/api/cart", cartRoutes); // Fixed: added /api/cart prefix
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
