@@ -181,9 +181,10 @@ export const getProducts = async (req, res) => {
     // Build filter query
     const filter = {};
     
-    // Filter by active status unless specifically asking for inactive
-    if (isActive !== 'false') {
-      filter.isActive = isActive === 'true' ? true : true;
+    // For admin, show all products by default (including inactive)
+    // Only filter by status if explicitly requested
+    if (req.query.isActive !== undefined) {
+      filter.isActive = req.query.isActive === 'true';
     }
     
     if (category) filter.category = category;
@@ -634,12 +635,24 @@ export const updateProduct = async (req, res) => {
     // Add updatedBy field
     updates.updatedBy = req.user._id;
     
-    const product = await Product.findByIdAndUpdate(
-      id, 
-      updates, 
-      { new: true, runValidators: true }
-    ).populate('createdBy', 'name email')
-     .populate('updatedBy', 'name email');
+    // Fetch product, update fields, and save to trigger pre-save hooks
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Product not found" 
+      });
+    }
+    
+    // Update fields
+    Object.assign(product, updates);
+    
+    // Save to trigger pre-save hooks
+    await product.save();
+    
+    // Populate refs for response
+    await product.populate('createdBy', 'name email');
+    await product.populate('updatedBy', 'name email');
     
     res.json({
       success: true,

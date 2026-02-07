@@ -68,11 +68,11 @@ const upload = multer({
 
 // ============ ADMIN ROUTES (Protected) ============
 
-// Admin middleware for all admin routes
-router.use("/admin", requireAuth, requireAdmin);
+// Apply auth and admin middleware to all routes
+router.use(requireAuth, requireAdmin);
 
 // Create product with multiple image fields
-router.post("/admin/products", 
+router.post("/products", 
   upload.fields([
     { name: 'mainImages', maxCount: 5 },
     { name: 'variantImages[0]', maxCount: 3 },
@@ -85,13 +85,13 @@ router.post("/admin/products",
 );
 
 // Get all products with filtering (admin view)
-router.get("/admin/products", getProducts);
+router.get("/products", getProducts);
 
 // Get single product by ID (admin view)
-router.get("/admin/products/:id", getProductById);
+router.get("/products/:id", getProductById);
 
 // Update product with multiple image fields
-router.put("/admin/products/:id", 
+router.put("/products/:id", 
   upload.fields([
     { name: 'mainImages', maxCount: 5 },
     { name: 'variantImages[0]', maxCount: 3 },
@@ -104,30 +104,30 @@ router.put("/admin/products/:id",
 );
 
 // Update variant stock
-router.patch("/admin/products/:productId/variants/:variantId/stock", updateVariantStock);
+router.patch("/products/:productId/variants/:variantId/stock", updateVariantStock);
 
 // Toggle product active status
-router.patch("/admin/products/:id/toggle-status", toggleProductStatus);
+router.patch("/products/:id/toggle-status", toggleProductStatus);
 
 // Toggle featured status
-router.patch("/admin/products/:id/toggle-featured", toggleFeaturedStatus);
+router.patch("/products/:id/toggle-featured", toggleFeaturedStatus);
 
 // Soft delete product (set isActive to false)
-router.delete("/admin/products/:id", deleteProduct);
+router.delete("/products/:id", deleteProduct);
 
 // Hard delete product (permanent deletion)
-router.delete("/admin/products/:id/hard", hardDeleteProduct);
+router.delete("/products/:id/hard", hardDeleteProduct);
 
 // Search products (admin)
-router.get("/admin/products/search", searchProducts);
+router.get("/products/search", searchProducts);
 
 // Get products by category (admin)
-router.get("/admin/products/category/:category", getProductsByCategory);
+router.get("/products/category/:category", getProductsByCategory);
 
 // ============ BULK OPERATIONS (Admin Only) ============
 
 // Bulk update products
-router.patch("/admin/products/bulk/update", async (req, res) => {
+router.patch("/products/bulk/update", async (req, res) => {
   try {
     const { ids, updates } = req.body;
     
@@ -166,7 +166,7 @@ router.patch("/admin/products/bulk/update", async (req, res) => {
 });
 
 // Bulk delete products (soft delete)
-router.delete("/admin/products/bulk/delete", async (req, res) => {
+router.delete("/products/bulk/delete", async (req, res) => {
   try {
     const { ids } = req.body;
     
