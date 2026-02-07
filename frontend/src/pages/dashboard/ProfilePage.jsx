@@ -59,8 +59,8 @@ export default function ProfilePage() {
           joinDate: userData.joinDate || new Date().toISOString().split('T')[0]
         });
 
-        // Fetch recent orders
-        const ordersRes = await api.get("/api/orders/recent");
+        // Fetch recent orders (user-specific)
+        const ordersRes = await api.get("/api/user/orders");
         setRecentOrders(ordersRes.data.orders || []);
         
       } catch (err) {

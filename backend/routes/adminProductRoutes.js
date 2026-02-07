@@ -77,11 +77,11 @@ const upload = multer({
 
 // ======================== ADMIN ROUTES (Protected) ========================
 
-// Apply auth and admin middleware to all admin routes
-router.use(requireAuth, requireAdmin);
+// NOTE: apply `requireAuth` + `requireAdmin` only to admin routes below.
+// Public frontend routes are declared first so they remain accessible.
 
 // Create product with images
-router.post("/products", 
+router.post("/products", requireAuth, requireAdmin,
   upload.fields([
     { name: 'mainImages', maxCount: 5 },
     { name: 'variantImages[0]', maxCount: 3 },
@@ -94,13 +94,13 @@ router.post("/products",
 );
 
 // Get all products (admin view with all filters)
-router.get("/products", getAdminProducts);
+router.get("/products", requireAuth, requireAdmin, getAdminProducts);
 
 // Get single product by ID (admin view)
-router.get("/products/:id", getAdminProductById);
+router.get("/products/:id", requireAuth, requireAdmin, getAdminProductById);
 
 // Update product with images
-router.put("/products/:id", 
+router.put("/products/:id", requireAuth, requireAdmin,
   upload.fields([
     { name: 'mainImages', maxCount: 5 },
     { name: 'variantImages[0]', maxCount: 3 },
@@ -113,28 +113,28 @@ router.put("/products/:id",
 );
 
 // Update variant stock
-router.patch("/products/:productId/variants/:variantId/stock", updateVariantStock);
+router.patch("/products/:productId/variants/:variantId/stock", requireAuth, requireAdmin, updateVariantStock);
 
 // Toggle product active status
-router.patch("/products/:id/toggle-status", toggleProductStatus);
+router.patch("/products/:id/toggle-status", requireAuth, requireAdmin, toggleProductStatus);
 
 // Toggle featured status
-router.patch("/products/:id/toggle-featured", toggleFeaturedStatus);
+router.patch("/products/:id/toggle-featured", requireAuth, requireAdmin, toggleFeaturedStatus);
 
 // Soft delete product
-router.delete("/products/:id", deleteProduct);
+router.delete("/products/:id", requireAuth, requireAdmin, deleteProduct);
 
 // Hard delete product (permanent)
-router.delete("/products/:id/hard", hardDeleteProduct);
+router.delete("/products/:id/hard", requireAuth, requireAdmin, hardDeleteProduct);
 
 // Bulk update products
-router.patch("/products/bulk/update", bulkUpdateProducts);
+router.patch("/products/bulk/update", requireAuth, requireAdmin, bulkUpdateProducts);
 
 // Bulk delete products
-router.delete("/products/bulk/delete", bulkDeleteProducts);
+router.delete("/products/bulk/delete", requireAuth, requireAdmin, bulkDeleteProducts);
 
 // Export products to CSV
-router.get("/products/export/csv", exportProductsCSV);
+router.get("/products/export/csv", requireAuth, requireAdmin, exportProductsCSV);
 
 // ======================== PUBLIC ROUTES (for frontend) ========================
 
