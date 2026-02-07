@@ -36,32 +36,73 @@ const MAIN_CATEGORIES = [
   { label: "Toe Rings", value: "Toe Rings" }
 ];
 
-const SUB_CATEGORIES = {
-  "Rings": ["Engagement Rings", "Wedding Rings", "Casual Rings", "Diamond Rings", "Gold Rings"],
-  "Bangles": ["Gold Bangles", "Diamond Bangles", "Kids Bangles", "Traditional Bangles"],
-  "Necklaces": ["Gold Necklaces", "Diamond Necklaces", "Chokers", "Bridal Necklaces"],
-  "Earrings": ["Stud Earrings", "Hoop Earrings", "Jhumkas", "Diamond Earrings"],
-  "Bracelets": ["Gold Bracelets", "Diamond Bracelets", "Cuffs", "Chain Bracelets"],
-  "Pendants": ["Gold Pendants", "Diamond Pendants", "Religious Pendants", "Heart Pendants"]
-};
-// Add empty/default subcategories for newly introduced categories
-SUB_CATEGORIES['Anklets'] = ["Gold Anklets", "Diamond Anklets", "Beaded Anklets"];
-SUB_CATEGORIES['Chains'] = ["Gold Chains", "Silver Chains", "Box Chains", "Cable Chains"];
-SUB_CATEGORIES['Sets'] = ["Necklace Sets", "Bangle Sets", "Earring Sets"];
-SUB_CATEGORIES['Toe Rings'] = ["Silver Toe Rings", "Gold Toe Rings"];
 
-// Available Colors with hex codes
-const AVAILABLE_COLORS = [
-  { name: "Gold", hexCode: "#FFD700" },
-  { name: "Rose Gold", hexCode: "#B76E79" },
-  { name: "White Gold", hexCode: "#F5F5F5" },
-  { name: "Silver", hexCode: "#C0C0C0" },
-  { name: "Platinum", hexCode: "#E5E4E2" },
-  { name: "Diamond White", hexCode: "#FFFFFF" },
-  { name: "Ruby Red", hexCode: "#E0115F" },
-  { name: "Emerald Green", hexCode: "#50C878" },
-  { name: "Sapphire Blue", hexCode: "#0F52BA" }
-];
+// Add empty/default subcategories for newly introduced categories
+const SUB_CATEGORIES = {
+  "Rings": [
+    "Artificial Rings",
+    "Fashion Rings",
+    "Casual Rings",
+    "Stone Rings",
+    "Bridal Rings"
+  ],
+
+  "Bangles": [
+    "Artificial Bangles",
+    "Imitation Bangles",
+    "Kids Bangles",
+    "Traditional Bangles"
+  ],
+
+  "Necklaces": [
+    "Artificial Necklaces",
+    "Imitation Necklaces",
+    "Chokers",
+    "Bridal Necklaces"
+  ],
+
+  "Earrings": [
+    "Stud Earrings",
+    "Hoop Earrings",
+    "Jhumkas",
+    "Artificial Earrings"
+  ],
+
+  "Bracelets": [
+    "Artificial Bracelets",
+    "Imitation Bracelets",
+    "Cuffs",
+    "Chain Bracelets"
+  ],
+
+  "Pendants": [
+    "Artificial Pendants",
+    "Imitation Pendants",
+    "Religious Pendants",
+    "Heart Pendants"
+  ],
+
+  // Existing + cleaned category
+  "Anklets": [
+    "Artificial Anklets",
+    "Imitation Anklets",
+    "Beaded Anklets"
+  ],
+
+  // ✅ New categories (same layout style)
+  "Mang Tikka": [
+    "Bridal Mang Tikka",
+    "Traditional Mang Tikka",
+    "Stone Mang Tikka"
+  ],
+
+  "Nath": [
+    "Traditional Nath",
+    "Bridal Nath",
+    "Stone Nath"
+  ]
+};
+
 
 // Available Sizes (for Rings and Bangles only)
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'Free Size'];
