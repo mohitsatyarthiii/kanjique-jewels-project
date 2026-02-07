@@ -634,24 +634,12 @@ export const updateProduct = async (req, res) => {
     // Add updatedBy field
     updates.updatedBy = req.user._id;
     
-    // Fetch product, update fields, and save to trigger pre-save hooks
-    const product = await Product.findById(id);
-    if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Product not found" 
-      });
-    }
-    
-    // Update fields
-    Object.assign(product, updates);
-    
-    // Save to trigger pre-save hooks
-    await product.save();
-    
-    // Populate refs for response
-    await product.populate('createdBy', 'name email');
-    await product.populate('updatedBy', 'name email');
+    const product = await Product.findByIdAndUpdate(
+      id, 
+      updates, 
+      { new: true, runValidators: true }
+    ).populate('createdBy', 'name email')
+     .populate('updatedBy', 'name email');
     
     res.json({
       success: true,
