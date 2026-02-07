@@ -13,9 +13,9 @@ import {
   FiEye,
   FiEyeOff,
   FiUpload,
-  FiRefreshCw
+  FiRefreshCw,
+  FiImage
 } from "react-icons/fi";
-import { toast } from "react-toastify"; // Optional: for better notifications
 
 // Categories and Subcategories (Jewelry focused)
 const MAIN_CATEGORIES = [
