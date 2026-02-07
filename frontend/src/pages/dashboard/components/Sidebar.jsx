@@ -22,7 +22,7 @@ const AdminSidebar = () => {
   const { logout } = useAuth();
 
   const navItems = [
-    { path: '/admin', label: 'Dashboard', icon: <FiLayout /> },
+    { path: '/admin/dashboard', label: 'Dashboard', icon: <FiLayout /> },
     { path: '/admin/products', label: 'Products', icon: <FiPackage /> },
     { path: '/admin/users', label: 'Users', icon: <FiUsers /> },
     { path: '/admin/orders', label: 'Orders', icon: <FiShoppingBag /> },

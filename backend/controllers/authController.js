@@ -5,14 +5,20 @@ import { generateToken } from "../utils/generateToken.js";
 const COOKIE_NAME = process.env.COOKIE_NAME || "token";
 
 const setTokenCookie = (res, token) => {
-  res.cookie(COOKIE_NAME, token, {
+  const isProd = process.env.NODE_ENV === "production";
+
+  const cookieOptions = {
     httpOnly: true,
-    secure: true,        // HTTPS mandatory
-    sameSite: "none",    // cross-site mandatory
-    path: "/",           // 🔥 CRITICAL
+    secure: isProd,               // only require secure in production
+    sameSite: isProd ? "none" : "lax",
+    path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    domain: ".kanjiquejewels.com" // 🔥 IMPORTANT FIX
-  });
+  };
+
+  // Only set domain explicitly in production where the public domain is known
+  if (isProd) cookieOptions.domain = ".kanjiquejewels.com";
+
+  res.cookie(COOKIE_NAME, token, cookieOptions);
 };
 
 export const signup = async (req, res) => {
@@ -61,11 +67,15 @@ export const login = async (req, res) => {
 
 export const logout = (req, res) => {
   const isProd = process.env.NODE_ENV === "production";
-  res.clearCookie(COOKIE_NAME, {
+  const clearOptions = {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? "none" : "lax",
-  });
+    path: "/",
+  };
+  if (isProd) clearOptions.domain = ".kanjiquejewels.com";
+
+  res.clearCookie(COOKIE_NAME, clearOptions);
   res.json({ ok: true });
 };
 
