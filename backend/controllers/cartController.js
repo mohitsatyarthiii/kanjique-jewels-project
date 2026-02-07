@@ -16,8 +16,9 @@ export const addToCart = async (req, res) => {
       });
     }
 
-    // Check if product is in stock
-    if (!product.inStock) {
+    // Check if product is in stock (either has variants with stock OR has totalStock)
+    const hasStock = product.inStock || (product.totalStock && product.totalStock > 0);
+    if (!hasStock) {
       return res.status(400).json({
         success: false,
         error: "Product is out of stock"
@@ -174,7 +175,8 @@ export const updateCartItem = async (req, res) => {
 
     // Get product to check stock
     const product = await Product.findById(productId);
-    if (!product.inStock) {
+    const hasStock = product.inStock || (product.totalStock && product.totalStock > 0);
+    if (!hasStock) {
       return res.status(400).json({
         success: false,
         error: "Product is out of stock"

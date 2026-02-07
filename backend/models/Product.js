@@ -53,7 +53,7 @@ const productSchema = new mongoose.Schema({
   
   // Stock management
   totalStock: { type: Number, default: 0 },
-  inStock: { type: Boolean, default: true },
+  inStock: { type: Boolean, default: false },  // Default to false; pre-save will set correctly
   isFeatured: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
   
@@ -112,8 +112,10 @@ productSchema.pre('save', function(next) {
     // If no variants, use base prices
     this.minPrice = this.baseSalePrice || this.basePrice;
     this.maxPrice = this.baseSalePrice || this.basePrice;
-    // Respect any provided totalStock; default to 0 if not provided
-    this.totalStock = typeof this.totalStock === 'number' ? this.totalStock : 0;
+    // Preserve provided totalStock if it exists; only default to 0 if truly undefined
+    if (this.totalStock === undefined || this.totalStock === null) {
+      this.totalStock = 0;
+    }
     this.inStock = this.totalStock > 0;
   }
   

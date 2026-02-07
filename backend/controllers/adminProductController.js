@@ -518,6 +518,12 @@ export const updateProduct = async (req, res) => {
       updates.slug = slug;
     }
     
+    // Parse numeric fields
+    if (updates.basePrice) updates.basePrice = parseFloat(updates.basePrice);
+    if (updates.baseSalePrice) updates.baseSalePrice = parseFloat(updates.baseSalePrice);
+    if (updates.overallDiscountPercentage) updates.overallDiscountPercentage = parseFloat(updates.overallDiscountPercentage);
+    if (updates.totalStock !== undefined) updates.totalStock = parseInt(updates.totalStock);
+    
     // Parse variants if provided
     if (updates.variants) {
       try {

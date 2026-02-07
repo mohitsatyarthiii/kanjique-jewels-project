@@ -63,8 +63,8 @@ export default function ProductPage() {
       setLoading(true);
       setError(null);
       try {
-        // Use the correct API endpoint - get product by ID
-        const res = await api.get(`/api/admin/products/${id}`);
+        // Use the public product endpoint to fetch product details
+        const res = await api.get(`/api/product/${id}`);
         
         if (!res.data.product) {
           throw new Error("Product not found");
@@ -103,8 +103,8 @@ export default function ProductPage() {
       
       setLoadingSimilar(true);
       try {
-        // Fetch products by category (public endpoint)
-        const res = await api.get(`/api/admin/products/category${product.category}?limit=8`);
+        // Fetch products by category using public endpoint
+        const res = await api.get(`/api/product?category=${product.category}&limit=8`);
         if (res.data.products) {
           // Filter out current product
           const filtered = res.data.products.filter(p => 
@@ -116,7 +116,7 @@ export default function ProductPage() {
         console.error("Error fetching similar products:", err);
         // If category endpoint fails, try public products
         try {
-          const fallbackRes = await api.get("/api/admin/products?limit=8");
+          const fallbackRes = await api.get("/api/product?limit=8");
           if (fallbackRes.data.products) {
             setSimilarProducts(fallbackRes.data.products.slice(0, 4));
           }
