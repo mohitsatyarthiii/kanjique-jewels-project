@@ -856,46 +856,46 @@ const AdminProducts = () => {
     fetchProducts();
   }, [refreshKey]);
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      // Using the admin products endpoint
-      const res = await api.get("/api/products", {
-        params: {
-          isActive: statusFilter === "all" ? undefined : statusFilter === "active"
-        }
-      });
-      
-      if (res.data.success) {
-        setProducts(res.data.products || []);
-      } else {
-        throw new Error(res.data.error || "Failed to load products");
+ const fetchProducts = async () => {
+  setLoading(true);
+  try {
+    // Using the admin products endpoint
+    const res = await api.get("/api/products", {
+      params: {
+        isActive: statusFilter === "all" ? undefined : statusFilter === "active"
       }
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      alert(error.response?.data?.error || error.message || "Failed to load products");
-    } finally {
-      setLoading(false);
+    });
+    
+    if (res.data.success) {
+      setProducts(res.data.products || []);
+    } else {
+      throw new Error(res.data.error || "Failed to load products");
     }
-  };
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    alert(error.response?.data?.error || error.message || "Failed to load products");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
+  if (!window.confirm("Are you sure you want to permanently delete this product? This action cannot be undone.")) return;
+  
+  try {
+    // Use hard delete endpoint instead of soft delete
+    const res = await api.delete(`/api/products/${id}/hard`);
     
-    try {
-      // Soft delete endpoint
-      const res = await api.delete(`/api/products/${id}`);
-      
-      if (res.data.success) {
-        // Remove from local state
-        setProducts(prev => prev.filter(p => p._id !== id));
-        alert("Product deleted successfully!");
-      }
-    } catch (error) {
-      console.error("Delete error:", error);
-      alert(error.response?.data?.error || "Failed to delete product");
+    if (res.data.success) {
+      // Remove from local state
+      setProducts(prev => prev.filter(p => p._id !== id));
+      alert("Product permanently deleted successfully!");
     }
-  };
+  } catch (error) {
+    console.error("Delete error:", error);
+    alert(error.response?.data?.error || "Failed to delete product");
+  }
+};
 
   const handleToggleStatus = async (id, currentStatus) => {
     try {

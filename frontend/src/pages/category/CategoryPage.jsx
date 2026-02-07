@@ -21,21 +21,22 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiPackage,
-  FiInfo
+  FiInfo,
+  FiCheck
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Fixed categories for filter sidebar
+// Fixed categories for filter sidebar (icons removed)
 const FIXED_CATEGORIES = [
-  { title: "Rings", value: "Rings", icon: "💍" },
-  { title: "Bangles", value: "Bangles", icon: "🔗" },
-  { title: "Necklaces", value: "Necklaces", icon: "📿" },
-  { title: "Earrings", value: "Earrings", icon: "✨" },
-  { title: "Bracelets", value: "Bracelets", icon: "💫" },
-  { title: "Pendants", value: "Pendants", icon: "🔶" },
-  { title: "Anklets", value: "Anklets", icon: "👣" },
-  { title: "Mang Tikka", value: "Mang Tikka", icon: "👑" },
-  { title: "Nath", value: "Nath", icon: "👃" }
+  { title: "Rings", value: "Rings" },
+  { title: "Bangles", value: "Bangles" },
+  { title: "Necklaces", value: "Necklaces" },
+  { title: "Earrings", value: "Earrings" },
+  { title: "Bracelets", value: "Bracelets" },
+  { title: "Pendants", value: "Pendants" },
+  { title: "Anklets", value: "Anklets" },
+  { title: "Mang Tikka", value: "Mang Tikka" },
+  { title: "Nath", value: "Nath" }
 ];
 
 // Color options for filter
@@ -176,6 +177,11 @@ export default function CategoryPage() {
         console.log("Products API Response:", res.data);
 
         if (res.data.success) {
+          // Debug: Check the structure of products data
+          console.log("First product data:", res.data.products?.[0]);
+          console.log("First product inStock value:", res.data.products?.[0]?.inStock);
+          console.log("First product variants:", res.data.products?.[0]?.variants);
+          
           setProducts(res.data.products || []);
           if (res.data.pagination) {
             setTotalPages(res.data.pagination.totalPages || 1);
@@ -249,6 +255,61 @@ export default function CategoryPage() {
     return "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
   };
 
+  // Get stock status - Improved logic based on actual API response
+  const getStockStatus = (product) => {
+    console.log("Checking stock for product:", product._id, product.title);
+    console.log("Product data:", {
+      inStock: product.inStock,
+      totalStock: product.totalStock,
+      variants: product.variants,
+      stockQuantity: product.stockQuantity
+    });
+    
+    // First, check if product has direct inStock field
+    if (typeof product.inStock !== 'undefined') {
+      console.log("Using direct inStock field:", product.inStock);
+      return {
+        inStock: product.inStock,
+        quantity: product.totalStock || product.stockQuantity || 0,
+        isLow: (product.totalStock || product.stockQuantity || 0) < 10 && 
+               (product.totalStock || product.stockQuantity || 0) > 0
+      };
+    }
+    
+    // Check if product has variants
+    if (product.variants && product.variants.length > 0) {
+      // Calculate total stock from all variants
+      const totalVariantStock = product.variants.reduce((total, variant) => {
+        return total + (variant.stockQuantity || 0);
+      }, 0);
+      
+      // Check if any variant has stock
+      const hasStock = product.variants.some(variant => (variant.stockQuantity || 0) > 0);
+      
+      console.log("Using variant stock calculation:", { hasStock, totalVariantStock });
+      
+      return {
+        inStock: hasStock,
+        quantity: totalVariantStock,
+        isLow: totalVariantStock < 10 && totalVariantStock > 0,
+        variantStock: product.variants.map(v => ({
+          color: v.color?.name || 'N/A',
+          size: v.size || 'N/A',
+          stock: v.stockQuantity || 0,
+          inStock: (v.stockQuantity || 0) > 0
+        }))
+      };
+    }
+    
+    // If no inStock field and no variants, assume in stock for display
+    console.log("No stock data found, assuming in stock");
+    return {
+      inStock: true,
+      quantity: 100, // Default value
+      isLow: false
+    };
+  };
+
   // Get price display
   const getPriceDisplay = (product) => {
     const basePrice = product.basePrice || product.displayPrice || 0;
@@ -288,6 +349,7 @@ export default function CategoryPage() {
   // Modern Product Card Component (Grid View)
   const ProductCard = ({ product, index }) => {
     const [isHovered, setIsHovered] = useState(false);
+    const stockStatus = getStockStatus(product);
 
     return (
       <motion.div
@@ -303,7 +365,7 @@ export default function CategoryPage() {
           onClick={() => handleProductClick(product._id)}
           className="block cursor-pointer"
         >
-          <div className="relative overflow-hidden rounded-xl bg-white shadow-sm border border-gray-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="relative overflow-hidden rounded-lg bg-white shadow-md border border-gray-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             {/* Badge Container */}
             <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
               {product.isFeatured && (
@@ -311,14 +373,23 @@ export default function CategoryPage() {
                   <FiAward className="inline mr-1" /> Featured
                 </div>
               )}
-              {product.hasDiscount && (
+              {product.baseSalePrice && product.baseSalePrice < product.basePrice && (
                 <div className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
-                  {Math.round(((product.basePrice - product.displayPrice) / product.basePrice) * 100)}% OFF
+                  {Math.round(((product.basePrice - product.baseSalePrice) / product.basePrice) * 100)}% OFF
                 </div>
               )}
-              {!product.inStock && (
+              
+              {/* Stock Badge - Show only if out of stock */}
+              {!stockStatus.inStock && (
                 <div className="px-3 py-1 bg-gray-600 text-white text-xs font-bold rounded-full shadow-lg">
                   Out of Stock
+                </div>
+              )}
+              
+              {/* Low Stock Badge */}
+              {stockStatus.inStock && stockStatus.isLow && (
+                <div className="px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
+                  Only {stockStatus.quantity} left
                 </div>
               )}
             </div>
@@ -330,7 +401,7 @@ export default function CategoryPage() {
                 e.stopPropagation();
                 // Add to wishlist logic
               }}
-              className="absolute top-3 right-3 z-10 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-[#b2965a] hover:text-white transition-all duration-300"
+              className="absolute top-3 right-3 z-10 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-[#b2965a] hover:text-white transition-all duration-300"
               title="Add to Wishlist"
             >
               <FiHeart className="w-4 h-4" />
@@ -368,25 +439,6 @@ export default function CategoryPage() {
                   <FiEye className="w-5 h-5" /> Quick View
                 </button>
               </motion.div>
-
-              {/* Color Dots */}
-              {product.availableColors && product.availableColors.length > 0 && (
-                <div className="absolute bottom-3 left-3 flex gap-1">
-                  {product.availableColors.slice(0, 3).map((color, idx) => (
-                    <div
-                      key={idx}
-                      className="w-4 h-4 rounded-full border-2 border-white shadow-md"
-                      style={{ backgroundColor: color?.hexCode || "#FFD700" }}
-                      title={color?.name || "Gold"}
-                    />
-                  ))}
-                  {product.availableColors.length > 3 && (
-                    <div className="w-4 h-4 rounded-full bg-white/90 border-2 border-white shadow-md flex items-center justify-center">
-                      <span className="text-xs text-gray-700 font-bold">+{product.availableColors.length - 3}</span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Product Info */}
@@ -418,14 +470,17 @@ export default function CategoryPage() {
                 {getPriceDisplay(product)}
               </div>
 
-              {/* Stock Status */}
+              {/* Stock Status - Updated with Product Page Logic */}
               <div className="flex items-center justify-between mb-4">
                 <div className={`text-xs px-2 py-1 rounded-full ${
-                  product.inStock 
-                    ? 'bg-green-100 text-green-700' 
+                  stockStatus.inStock 
+                    ? stockStatus.isLow 
+                      ? 'bg-orange-100 text-orange-700' 
+                      : 'bg-green-100 text-green-700'
                     : 'bg-red-100 text-red-700'
                 }`}>
-                  {product.inStock ? 'In Stock' : 'Out of Stock'}
+                  {!stockStatus.inStock ? 'Out of Stock' : 
+                   stockStatus.isLow ? `Only ${stockStatus.quantity} left` : 'In Stock'}
                 </div>
                 {product.availableColors?.length > 0 && (
                   <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -449,8 +504,13 @@ export default function CategoryPage() {
                 </button>
                 <button
                   onClick={(e) => handleAddToCart(e, product)}
-                  className="w-10 h-10 bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-200 hover:text-[#b2965a] transition-all duration-300"
-                  title="Add to Cart"
+                  disabled={!stockStatus.inStock}
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                    stockStatus.inStock
+                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-[#b2965a]'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={stockStatus.inStock ? "Add to Cart" : "Out of Stock"}
                 >
                   <FiShoppingCart className="w-5 h-5" />
                 </button>
@@ -464,6 +524,8 @@ export default function CategoryPage() {
 
   // List View Product Component
   const ProductListCard = ({ product, index }) => {
+    const stockStatus = getStockStatus(product);
+
     return (
       <motion.div
         key={product._id}
@@ -476,7 +538,7 @@ export default function CategoryPage() {
           onClick={() => handleProductClick(product._id)}
           className="block cursor-pointer"
         >
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-xl transition-all duration-300">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden">
             <div className="flex flex-col md:flex-row">
               {/* Image Section */}
               <div className="md:w-48 md:h-48 relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
@@ -497,19 +559,28 @@ export default function CategoryPage() {
                       Featured
                     </div>
                   )}
-                  {product.hasDiscount && (
+                  {product.baseSalePrice && product.baseSalePrice < product.basePrice && (
                     <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">
-                      {Math.round(((product.basePrice - product.displayPrice) / product.basePrice) * 100)}% OFF
+                      {Math.round(((product.basePrice - product.baseSalePrice) / product.basePrice) * 100)}% OFF
                     </div>
                   )}
                 </div>
+                
+                {/* Stock Badge */}
+                {!stockStatus.inStock && (
+                  <div className="absolute bottom-3 left-3">
+                    <div className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
+                      Out of Stock
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Info Section */}
-              <div className="flex-1 p-4">
+              <div className="flex-1 p-6">
                 <div className="flex flex-col h-full">
                   {/* Header */}
-                  <div className="mb-3">
+                  <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-[#b2965a] uppercase tracking-wider">
                         {product.category || "Jewelry"}
@@ -518,26 +589,31 @@ export default function CategoryPage() {
                         <span className="text-xs text-gray-500">{product.brand}</span>
                       )}
                     </div>
-                    <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-[#b2965a] transition-colors">
+                    <h3 className="font-bold text-xl text-gray-900 mb-3 group-hover:text-[#b2965a] transition-colors">
                       {product.title || "Untitled Product"}
                     </h3>
-                    <p className="text-sm text-gray-600 line-clamp-2">
+                    <p className="text-sm text-gray-600 line-clamp-2 mb-4">
                       {product.shortDescription || "Premium quality jewelry piece."}
                     </p>
                   </div>
 
                   {/* Details */}
-                  <div className="flex-1 grid grid-cols-2 gap-3 mb-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div>
                       <div className="text-xs text-gray-500 mb-1">Price</div>
                       {getPriceDisplay(product)}
                     </div>
                     <div>
-                      <div className="text-xs text-gray-500 mb-1">Stock</div>
+                      <div className="text-xs text-gray-500 mb-1">Stock Status</div>
                       <div className={`text-sm font-medium ${
-                        product.inStock ? 'text-green-600' : 'text-red-600'
+                        stockStatus.inStock 
+                          ? stockStatus.isLow 
+                            ? 'text-orange-600' 
+                            : 'text-green-600'
+                          : 'text-red-600'
                       }`}>
-                        {product.inStock ? 'Available' : 'Out of Stock'}
+                        {!stockStatus.inStock ? 'Out of Stock' : 
+                         stockStatus.isLow ? `Low Stock (${stockStatus.quantity})` : 'In Stock'}
                       </div>
                     </div>
                     <div>
@@ -547,42 +623,36 @@ export default function CategoryPage() {
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-gray-500 mb-1">Colors</div>
-                      <div className="flex gap-1">
-                        {product.availableColors?.slice(0, 3).map((color, idx) => (
-                          <div
-                            key={idx}
-                            className="w-4 h-4 rounded-full border border-gray-300"
-                            style={{ backgroundColor: color?.hexCode || "#FFD700" }}
-                            title={color?.name || "Gold"}
-                          />
-                        ))}
-                        {product.availableColors?.length > 3 && (
-                          <div className="text-xs text-gray-500">
-                            +{product.availableColors.length - 3} more
-                          </div>
-                        )}
+                      <div className="text-xs text-gray-500 mb-1">Available</div>
+                      <div className="text-sm text-gray-700">
+                        {stockStatus.inStock ? 'Yes' : 'No'}
                       </div>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-4">
                     <button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleProductClick(product._id);
                       }}
-                      className="flex-1 bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-all"
+                      className="flex-1 bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-all hover:scale-[1.02]"
                     >
                       <FiShoppingBag className="w-4 h-4" /> View Details
                     </button>
                     <button
                       onClick={(e) => handleAddToCart(e, product)}
-                      className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-gray-200 transition-all"
+                      disabled={!stockStatus.inStock}
+                      className={`px-6 py-3 rounded-lg font-semibold text-sm flex items-center gap-2 transition-all ${
+                        stockStatus.inStock
+                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-[1.02]'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
                     >
-                      <FiShoppingCart className="w-4 h-4" /> Add to Cart
+                      <FiShoppingCart className="w-4 h-4" /> 
+                      {stockStatus.inStock ? 'Add to Cart' : 'Out of Stock'}
                     </button>
                   </div>
                 </div>
@@ -645,24 +715,32 @@ export default function CategoryPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
+          {/* Sidebar Filters - Professional UI */}
           <div className="lg:w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24">
-              <h3 className="font-bold text-gray-900 mb-6 text-lg">Filters</h3>
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 sticky top-24">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-gray-900 text-lg">Filters</h3>
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-[#b2965a] hover:text-[#9c8146] font-medium"
+                >
+                  Clear All
+                </button>
+              </div>
 
-              {/* Categories */}
+              {/* Categories - Icons removed */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4 flex items-center justify-between">
                   <span>Categories</span>
                   <span className="text-sm text-gray-500">{availableFilters.categories.length}</span>
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <button
                     onClick={() => handleCategoryChange('all')}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       !category 
-                        ? 'bg-[#b2965a] text-white' 
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-[#b2965a] text-white shadow-md' 
+                        : 'text-gray-700 hover:bg-gray-100 hover:pl-5'
                     }`}
                   >
                     All Products
@@ -671,35 +749,48 @@ export default function CategoryPage() {
                     <button
                       key={cat.value}
                       onClick={() => handleCategoryChange(cat.value)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                      className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-3 ${
                         category === cat.value
-                          ? 'bg-[#b2965a] text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          ? 'bg-[#b2965a] text-white shadow-md'
+                          : 'text-gray-700 hover:bg-gray-100 hover:pl-5'
                       }`}
                     >
-                      <span>{cat.icon}</span>
+                      <span className={`w-2 h-2 rounded-full ${
+                        category === cat.value ? 'bg-white' : 'bg-[#b2965a]'
+                      }`}></span>
                       <span>{cat.title}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Price Range */}
+              {/* Price Range - Professional Slider */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>₹{priceFilter[0].toLocaleString()}</span>
-                    <span>₹{priceFilter[1].toLocaleString()}</span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700">₹{priceFilter[0].toLocaleString()}</span>
+                    <span className="font-medium text-gray-700">₹{priceFilter[1].toLocaleString()}</span>
                   </div>
-                  <div className="relative pt-4">
+                  <div className="relative pt-1">
+                    <div className="h-2 bg-gray-200 rounded-full">
+                      <div 
+                        className="absolute h-2 bg-[#b2965a] rounded-full"
+                        style={{
+                          left: `${((priceFilter[0] - (availableFilters.priceRange.minPrice || 0)) / 
+                                 ((availableFilters.priceRange.maxPrice || 1000000) - (availableFilters.priceRange.minPrice || 0))) * 100}%`,
+                          right: `${100 - ((priceFilter[1] - (availableFilters.priceRange.minPrice || 0)) / 
+                                  ((availableFilters.priceRange.maxPrice || 1000000) - (availableFilters.priceRange.minPrice || 0))) * 100}%`
+                        }}
+                      ></div>
+                    </div>
                     <input
                       type="range"
                       min={availableFilters.priceRange.minPrice || 0}
                       max={availableFilters.priceRange.maxPrice || 1000000}
                       value={priceFilter[0]}
                       onChange={(e) => handlePriceChange(Number(e.target.value), priceFilter[1])}
-                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto"
+                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-lg"
                     />
                     <input
                       type="range"
@@ -707,56 +798,56 @@ export default function CategoryPage() {
                       max={availableFilters.priceRange.maxPrice || 1000000}
                       value={priceFilter[1]}
                       onChange={(e) => handlePriceChange(priceFilter[0], Number(e.target.value))}
-                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto"
+                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-lg"
                     />
-                    <div className="h-2 bg-gray-200 rounded-full"></div>
                   </div>
                 </div>
               </div>
 
-              {/* Colors */}
+              {/* Colors - Professional Color Selector */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4">Colors</h4>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {COLOR_OPTIONS.map((color) => (
                     <button
                       key={color.name}
                       onClick={() => handleColorSelect(color.name)}
-                      className={`w-8 h-8 rounded-full border-2 transition-transform ${
+                      className={`relative w-8 h-8 rounded-full border-2 transition-all duration-200 hover:scale-110 ${
                         selectedColors.includes(color.name)
-                          ? 'border-[#b2965a] scale-110'
-                          : 'border-gray-300 hover:scale-110'
+                          ? 'border-[#b2965a] scale-110 shadow-lg'
+                          : 'border-gray-300 hover:border-gray-400'
                       }`}
                       style={{ backgroundColor: color.hexCode }}
                       title={color.name}
-                    />
+                    >
+                      {selectedColors.includes(color.name) && (
+                        <FiCheck className="absolute inset-0 m-auto w-4 h-4 text-white stroke-[3]" />
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              {/* Active Filters */}
+              {/* Active Filters - Professional Tags */}
               {(priceFilter[0] > (availableFilters.priceRange.minPrice || 0) || 
                 priceFilter[1] < (availableFilters.priceRange.maxPrice || 1000000) || 
                 selectedColors.length > 0) && (
                 <div className="pt-6 border-t border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-bold text-gray-900">Active Filters</h4>
-                    <button
-                      onClick={clearFilters}
-                      className="text-sm text-[#b2965a] hover:text-[#9c8146] font-medium"
-                    >
-                      Clear All
-                    </button>
-                  </div>
+                  <h4 className="font-bold text-gray-900 mb-3">Active Filters</h4>
                   <div className="flex flex-wrap gap-2">
                     {(priceFilter[0] > (availableFilters.priceRange.minPrice || 0) || 
                       priceFilter[1] < (availableFilters.priceRange.maxPrice || 1000000)) && (
-                      <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                      <span className="px-3 py-1.5 bg-[#b2965a]/10 text-[#b2965a] text-sm rounded-full border border-[#b2965a]/20 flex items-center gap-1">
+                        <FiTag className="w-3 h-3" />
                         Price: ₹{priceFilter[0].toLocaleString()} - ₹{priceFilter[1].toLocaleString()}
                       </span>
                     )}
                     {selectedColors.map(color => (
-                      <span key={color} className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                      <span key={color} className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-full border border-gray-200 flex items-center gap-1">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: COLOR_OPTIONS.find(c => c.name === color)?.hexCode || '#ccc' }}
+                        />
                         {color}
                       </span>
                     ))}
@@ -766,130 +857,186 @@ export default function CategoryPage() {
             </div>
           </div>
 
-          {/* Main Content */}
+          {/* Main Content - Professional Layout */}
           <div className="flex-1">
-            {/* Toolbar */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="text-gray-600 text-sm">
-                  Showing <span className="font-bold text-gray-900">{products.length}</span> of{" "}
-                  <span className="font-bold text-gray-900">{totalProducts}</span> products
+            {/* Toolbar - Professional Design */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="flex flex-col">
+                  <div className="text-gray-600 text-sm">
+                    Showing <span className="font-bold text-gray-900">{Math.min(itemsPerPage, products.length)}</span> of{" "}
+                    <span className="font-bold text-gray-900">{totalProducts}</span> products
+                  </div>
+                  {category && (
+                    <div className="mt-2">
+                      <span className="text-xs px-3 py-1 bg-[#b2965a] text-white rounded-full font-medium">
+                        {category}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="flex items-center gap-4">
-                  {/* Sort */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  {/* Sort - Professional Select */}
                   <div className="relative">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => handleSortChange(e.target.value)}
-                      className="pl-4 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#b2965a] focus:ring-1 focus:ring-[#b2965a] outline-none appearance-none bg-white min-w-[180px]"
-                    >
-                      {SORT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <FiChevronLeft className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none rotate-90" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Sort by
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={sortBy}
+                        onChange={(e) => handleSortChange(e.target.value)}
+                        className="pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:border-[#b2965a] focus:ring-2 focus:ring-[#b2965a]/30 outline-none appearance-none bg-white min-w-[200px] shadow-sm"
+                      >
+                        {SORT_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <FiChevronLeft className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none rotate-90" />
+                    </div>
                   </div>
 
-                  {/* View Mode */}
-                  <div className="flex bg-gray-100 rounded-lg p-1">
-                    <button
-                      onClick={() => setViewMode("grid")}
-                      className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-white shadow-sm text-[#b2965a]" : "text-gray-500 hover:text-gray-700"}`}
-                      title="Grid View"
-                    >
-                      <FiGrid className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode("list")}
-                      className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-[#b2965a]" : "text-gray-500 hover:text-gray-700"}`}
-                      title="List View"
-                    >
-                      <FiList className="w-4 h-4" />
-                    </button>
+                  {/* View Mode - Professional Toggle */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      View
+                    </label>
+                    <div className="flex bg-gray-100 rounded-lg p-1 shadow-inner">
+                      <button
+                        onClick={() => setViewMode("grid")}
+                        className={`p-2 rounded transition-all duration-200 ${
+                          viewMode === "grid" 
+                            ? "bg-white shadow-sm text-[#b2965a]" 
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                        title="Grid View"
+                      >
+                        <FiGrid className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setViewMode("list")}
+                        className={`p-2 rounded transition-all duration-200 ${
+                          viewMode === "list" 
+                            ? "bg-white shadow-sm text-[#b2965a]" 
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                        title="List View"
+                      >
+                        <FiList className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Products */}
+            {/* Products Grid/List */}
             {products.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-                  <FiPackage className="w-10 h-10 text-gray-400" />
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-16 text-center">
+                <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                  <FiPackage className="w-12 h-12 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No Products Found</h3>
-                <p className="text-gray-600 mb-6">Try adjusting your filters or browse all products</p>
-                <button
-                  onClick={clearFilters}
-                  className="bg-[#b2965a] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#9c8146] transition-colors"
-                >
-                  Clear Filters
-                </button>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">No Products Found</h3>
+                <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                  Try adjusting your filters or browse our complete collection
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={clearFilters}
+                    className="bg-[#b2965a] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#9c8146] transition-all duration-300 shadow-md hover:shadow-lg"
+                  >
+                    Clear All Filters
+                  </button>
+                  <button
+                    onClick={() => handleCategoryChange('all')}
+                    className="bg-white text-[#b2965a] border border-[#b2965a] px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300"
+                  >
+                    Browse All Products
+                  </button>
+                </div>
               </div>
             ) : viewMode === "grid" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {products.map((product, index) => (
                   <ProductCard key={product._id} product={product} index={index} />
                 ))}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {products.map((product, index) => (
                   <ProductListCard key={product._id} product={product} index={index} />
                 ))}
               </div>
             )}
 
-            {/* Pagination */}
+            {/* Pagination - Professional Design */}
             {totalPages > 1 && (
-              <div className="mt-8 flex justify-center">
-                <nav className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  >
-                    <FiChevronLeft className="w-5 h-5" />
-                  </button>
+              <div className="mt-12 pt-8 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-sm text-gray-600">
+                    Page <span className="font-bold text-gray-900">{currentPage}</span> of{" "}
+                    <span className="font-bold text-gray-900">{totalPages}</span>
+                  </div>
                   
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
+                  <nav className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow"
+                    >
+                      <FiChevronLeft className="w-5 h-5" />
+                    </button>
                     
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 flex items-center justify-center border rounded-lg font-medium transition-colors ${
-                          currentPage === pageNum
-                            ? 'border-[#b2965a] bg-[#b2965a] text-white'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  >
-                    <FiChevronRight className="w-5 h-5" />
-                  </button>
-                </nav>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`w-10 h-10 flex items-center justify-center border rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow ${
+                            currentPage === pageNum
+                              ? 'border-[#b2965a] bg-[#b2965a] text-white hover:bg-[#9c8146]'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <>
+                        <span className="px-2 text-gray-400">...</span>
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow"
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow"
+                    >
+                      <FiChevronRight className="w-5 h-5" />
+                    </button>
+                  </nav>
+                </div>
               </div>
             )}
           </div>
