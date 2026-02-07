@@ -34,12 +34,13 @@ export default function TestCheckoutPage() {
     const fetchCart = async () => {
       try {
         const res = await api.get("/api/cart");
+        console.log("Cart data:", res.data.cart); // Debug log
         setCart(res.data.cart);
 
         const profileRes = await api.get("/api/profile");
         setAddress(profileRes.data.user.address || "");
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching cart:", err);
       } finally {
         setLoading(false);
       }
@@ -47,57 +48,125 @@ export default function TestCheckoutPage() {
     fetchCart();
   }, []);
 
-  const handlePayment = async () => {
-    if (!address) {
-      setShowAddressModal(true);
+const handlePayment = async () => {
+  if (!address) {
+    setShowAddressModal(true);
+    return;
+  }
+
+  if (!agreedToTerms) {
+    alert("Please agree to the terms and conditions");
+    return;
+  }
+
+  setIsProcessing(true);
+
+  try {
+    // First save address if not already saved
+    if (!address.trim()) {
+      alert("Please add a delivery address");
       return;
     }
 
-    if (!agreedToTerms) {
-      alert("Please agree to the terms and conditions");
-      return;
-    }
+    const res = await api.post("/api/test/checkout/order");
+    const { order, key } = res.data;
 
-    setIsProcessing(true);
-
+    // Get user info for prefill (you need to fetch user data)
+    let userData = {};
     try {
-      const res = await api.post("/api/test/checkout/order");
-      const { order, key } = res.data;
+      const profileRes = await api.get("/api/profile");
+      userData = profileRes.data.user;
+    } catch (err) {
+      console.log("Could not fetch user profile, using default prefill");
+    }
 
-      const options = {
-        key,
-        amount: order.amount,
-        currency: order.currency,
-        name: "KANJIQUE JEWELS",
-        description: "Premium Jewelry Purchase",
-        order_id: order.id,
-        handler: function (response) {
-          window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${response.razorpay_order_id}`;
-        },
-        prefill: {
-          name: "",
-          email: "",
-          contact: ""
-        },
-        theme: { 
-          color: "#b2965a",
-          backdrop_color: "#fef8e9"
-        },
-        modal: {
-          ondismiss: function() {
+    const options = {
+      key,
+      amount: order.amount,
+      currency: order.currency,
+      name: "KANJIQUE JEWELS",
+      description: "Premium Jewelry Purchase",
+      order_id: order.id,
+      handler: async function (response) {
+        try {
+          // Verify payment
+          const verifyRes = await api.post("/api/test/checkout/verify", {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          });
+
+          if (verifyRes.data.success) {
+            window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${response.razorpay_order_id}`;
+          } else {
+            alert("Payment verification failed");
             setIsProcessing(false);
           }
+        } catch (verifyErr) {
+          console.error("Verification error:", verifyErr);
+          alert("Payment verification failed");
+          setIsProcessing(false);
         }
-      };
+      },
+      prefill: {
+        name: userData.name || "",
+        email: userData.email || "",
+        contact: userData.phone || ""
+      },
+      theme: { 
+        color: "#b2965a",
+        backdrop_color: "#fef8e9"
+      },
+      modal: {
+        ondismiss: function() {
+          setIsProcessing(false);
+        }
+      },
+      notes: {
+        address: "KANJIQUE JEWELS"
+      },
+      config: {
+        display: {
+          blocks: {
+            banks: {
+              name: 'Pay using Banks',
+              instruments: [
+                {
+                  method: 'card',
+                  issuers: ['MASTERCARD', 'VISA']
+                },
+                {
+                  method: 'netbanking',
+                  banks: ['HDFC', 'ICICI', 'SBI', 'AXIS']
+                }
+              ]
+            },
+            upi: {
+              name: "Pay using UPI",
+              instruments: [
+                {
+                  method: 'upi',
+                  flows: ['collect']
+                }
+              ]
+            }
+          },
+          sequence: ['block.banks', 'block.upi'],
+          preferences: {
+            show_default_blocks: true
+          }
+        }
+      }
+    };
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || "Failed to initiate payment");
-      setIsProcessing(false);
-    }
-  };
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (err) {
+    console.error("Payment error:", err);
+    alert(err.response?.data?.error || "Failed to initiate payment");
+    setIsProcessing(false);
+  }
+};
 
   const handleSaveAddress = async () => {
     if (!address.trim()) {
@@ -131,7 +200,7 @@ export default function TestCheckoutPage() {
     </div>
   );
 
-  if (!cart || cart.items.length === 0) return (
+  if (!cart || !cart.items || cart.items.length === 0) return (
     <div className="min-h-screen bg-gradient-to-b from-white to-[#fef8e9]/10 pt-32 pb-40 flex items-center justify-center">
       <div className="text-center max-w-md px-4">
         <div className="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] rounded-full flex items-center justify-center">
@@ -150,7 +219,14 @@ export default function TestCheckoutPage() {
     </div>
   );
 
-  const subtotal = cart.items.reduce((sum, it) => sum + (it.product?.price || 0) * it.quantity, 0);
+  // Calculate subtotal from cart items
+  const subtotal = cart.totalPrice || cart.items.reduce((sum, item) => {
+    // Use item.price from cart (already includes sale price)
+    const price = item.price || 0;
+    return sum + (price * item.quantity);
+  }, 0);
+
+  // Calculate discount (simplified logic)
   const discount = subtotal > 10000 ? 500 : 0;
   const total = subtotal - discount;
 
@@ -305,62 +381,86 @@ export default function TestCheckoutPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {cart.items.map((it, index) => (
-                    <motion.div
-                      key={it.product._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex gap-4 p-4 bg-white rounded-xl border border-[#f4e6c3] hover:shadow-lg transition-shadow"
-                    >
-                      <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] flex-shrink-0">
-                        <img
-                          src={it.product.images?.[0]?.url}
-                          alt={it.product.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute top-1 right-1 bg-white/90 backdrop-blur-sm text-xs font-bold px-2 py-1 rounded-full">
-                          ×{it.quantity}
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-bold text-gray-900 mb-1">{it.product.title}</h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <span className="capitalize">{it.product.category}</span>
-                              <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                              <span>Premium Quality</span>
+                  {cart.items.map((item, index) => {
+                    const product = item.product;
+                    const price = item.price || 0;
+                    const imageUrl = product?.mainImages?.[0]?.url || "";
+                    const title = product?.title || "Product";
+                    const category = product?.category || "";
+                    
+                    return (
+                      <motion.div
+                        key={item._id || `${product?._id}-${index}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex gap-4 p-4 bg-white rounded-xl border border-[#f4e6c3] hover:shadow-lg transition-shadow"
+                      >
+                        <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] flex-shrink-0">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-8 h-8 text-[#b2965a]" />
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-gray-900">
-                              ₹{(it.product.price * it.quantity).toLocaleString()}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              ₹{it.product.price.toLocaleString()} each
-                            </div>
+                          )}
+                          <div className="absolute top-1 right-1 bg-white/90 backdrop-blur-sm text-xs font-bold px-2 py-1 rounded-full">
+                            ×{item.quantity}
                           </div>
                         </div>
                         
-                        <div className="mt-3 flex items-center gap-4">
-                          <div className="flex items-center gap-1 text-xs text-gray-600">
-                            <Crown className="w-3 h-3 text-[#b2965a]" />
-                            <span>Premium</span>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-bold text-gray-900 mb-1">{title}</h3>
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <span className="capitalize">{category}</span>
+                                {item.variantDetails?.color && (
+                                  <>
+                                    <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                                    <span>{item.variantDetails.color.name}</span>
+                                  </>
+                                )}
+                                {item.variantDetails?.size && (
+                                  <>
+                                    <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                                    <span>Size: {item.variantDetails.size}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-gray-900">
+                                ₹{(price * item.quantity).toLocaleString()}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                ₹{price.toLocaleString()} each
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-600">
-                            <Shield className="w-3 h-3 text-[#b2965a]" />
-                            <span>Authentic</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-600">
-                            <Gem className="w-3 h-3 text-[#b2965a]" />
-                            <span>Hallmarked</span>
+                          
+                          <div className="mt-3 flex items-center gap-4">
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <Crown className="w-3 h-3 text-[#b2965a]" />
+                              <span>Premium</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <Shield className="w-3 h-3 text-[#b2965a]" />
+                              <span>Authentic</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <Gem className="w-3 h-3 text-[#b2965a]" />
+                              <span>Hallmarked</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
             </motion.div>

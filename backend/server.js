@@ -56,7 +56,7 @@ app.use("/api", adminProductRoutes);
 app.use("/api/cart", cartRoutes); // Fixed: added /api/cart prefix
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
-app.use("/api/checkout", checkoutRoutes); // Fixed: added /api/checkout prefix
+app.use("/api/test/checkout", checkoutRoutes);// Fixed: added /api/checkout prefix
 app.use("/api/profile", profileRoutes); // Fixed: added /api/profile prefix
 app.use("/api/admin/stats", adminStatsRoutes);
 app.use("/api/user/orders", userOrdersRoutes);

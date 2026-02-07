@@ -1,4 +1,3 @@
-// routes/cartRoutes.js
 import express from "express";
 import {
   addToCart,
@@ -14,10 +13,19 @@ const router = express.Router();
 // All cart routes require authentication
 router.use(requireAuth);
 
+// Add item to cart
 router.post("/", addToCart);
+
+// Get user cart
 router.get("/", getCart);
+
+// Update cart item quantity
 router.put("/", updateCartItem);
-router.delete("/item/:productId", removeCartItem);
-router.delete("/clear", clearCart);
+
+// Remove item from cart
+router.delete("/:productId", removeCartItem);
+
+// Clear entire cart
+router.delete("/", clearCart);
 
 export default router;

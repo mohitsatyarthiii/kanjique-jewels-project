@@ -3,8 +3,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../utils/axiosInstance";
 import { 
   FiFilter, 
-  FiChevronDown, 
-  FiChevronUp, 
   FiStar, 
   FiShoppingBag, 
   FiShoppingCart,
@@ -17,24 +15,27 @@ import {
   FiClock,
   FiTrendingUp,
   FiAward,
-  FiLoader,
-  FiXCircle,
   FiGrid,
   FiList,
   FiX,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiPackage,
+  FiInfo
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Fixed categories for filter sidebar
 const FIXED_CATEGORIES = [
-  { title: "Rings", icon: "💍" },
-  { title: "Bangles", icon: "🔗" },
-  { title: "Necklaces", icon: "📿" },
-  { title: "Earrings", icon: "✨" },
-  { title: "Bracelets", icon: "💫" },
-  { title: "Pendants", icon: "🔶" }
+  { title: "Rings", value: "Rings", icon: "💍" },
+  { title: "Bangles", value: "Bangles", icon: "🔗" },
+  { title: "Necklaces", value: "Necklaces", icon: "📿" },
+  { title: "Earrings", value: "Earrings", icon: "✨" },
+  { title: "Bracelets", value: "Bracelets", icon: "💫" },
+  { title: "Pendants", value: "Pendants", icon: "🔶" },
+  { title: "Anklets", value: "Anklets", icon: "👣" },
+  { title: "Mang Tikka", value: "Mang Tikka", icon: "👑" },
+  { title: "Nath", value: "Nath", icon: "👃" }
 ];
 
 // Color options for filter
@@ -43,15 +44,22 @@ const COLOR_OPTIONS = [
   { name: "Rose Gold", hexCode: "#B76E79" },
   { name: "White Gold", hexCode: "#F5F5F5" },
   { name: "Silver", hexCode: "#C0C0C0" },
-  { name: "Platinum", hexCode: "#E5E4E2" }
+  { name: "Platinum", hexCode: "#E5E4E2" },
+  { name: "Diamond White", hexCode: "#FFFFFF" },
+  { name: "Ruby Red", hexCode: "#E0115F" },
+  { name: "Emerald Green", hexCode: "#50C878" },
+  { name: "Sapphire Blue", hexCode: "#0F52BA" },
+  { name: "Black", hexCode: "#000000" }
 ];
 
 // Sort options
 const SORT_OPTIONS = [
-  { value: "featured", label: "Featured", icon: <FiAward /> },
   { value: "newest", label: "New Arrivals", icon: <FiClock /> },
-  { value: "price-low", label: "Price: Low to High", icon: <FiTrendingUp /> },
-  { value: "price-high", label: "Price: High to Low", icon: <FiTrendingUp className="rotate-180" /> }
+  { value: "popular", label: "Popular", icon: <FiTrendingUp /> },
+  { value: "price-asc", label: "Price: Low to High", icon: <FiTrendingUp /> },
+  { value: "price-desc", label: "Price: High to Low", icon: <FiTrendingUp className="rotate-180" /> },
+  { value: "name-asc", label: "Name: A to Z", icon: <FiPackage /> },
+  { value: "name-desc", label: "Name: Z to A", icon: <FiPackage className="rotate-180" /> }
 ];
 
 export default function CategoryPage() {
@@ -60,15 +68,48 @@ export default function CategoryPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState("featured");
+  const [sortBy, setSortBy] = useState("newest");
   const [priceFilter, setPriceFilter] = useState([0, 1000000]);
   const [selectedColors, setSelectedColors] = useState([]);
   const [viewMode, setViewMode] = useState("grid");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [availableFilters, setAvailableFilters] = useState({
+    categories: [],
+    subCategories: [],
+    brands: [],
+    colors: [],
+    sizes: [],
+    priceRange: { minPrice: 0, maxPrice: 1000000 }
+  });
   const itemsPerPage = 12;
+
+  // Fetch available filters
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const res = await api.get("/api/public/products/filters/available", {
+          params: { category }
+        });
+        
+        if (res.data.success) {
+          setAvailableFilters(res.data.filters);
+          // Set price filter range based on available products
+          if (res.data.filters.priceRange) {
+            setPriceFilter([
+              res.data.filters.priceRange.minPrice || 0,
+              res.data.filters.priceRange.maxPrice || 1000000
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching filters:", err);
+      }
+    };
+    
+    fetchFilters();
+  }, [category]);
 
   // Fetch products based on category and filters
   useEffect(() => {
@@ -76,15 +117,14 @@ export default function CategoryPage() {
       setLoading(true);
       setError(null);
       try {
-        let url = "/api/admin/products";
+        // Use PUBLIC ROUTE for frontend
+        let url = "/api/public/products";
         const params = {
           page: currentPage,
-          limit: itemsPerPage,
-          sortBy: sortBy === 'featured' ? 'isFeatured' : 'createdAt',
-          sortOrder: sortBy === 'price-low' ? 'asc' : 'desc'
+          limit: itemsPerPage
         };
 
-        // Apply category filter if exists
+        // Apply category filter
         if (category && category !== 'all') {
           params.category = category;
         }
@@ -97,36 +137,58 @@ export default function CategoryPage() {
 
         // Apply color filter
         if (selectedColors.length > 0) {
-          params.color = selectedColors.join(',');
+          // Take only first color for API filter
+          params.color = selectedColors[0];
+        }
+
+        // Apply sort
+        switch (sortBy) {
+          case 'newest':
+            params.sortBy = 'createdAt';
+            params.sortOrder = 'desc';
+            break;
+          case 'popular':
+            params.sortBy = 'isFeatured';
+            params.sortOrder = 'desc';
+            break;
+          case 'price-asc':
+            params.sortBy = 'minPrice';
+            params.sortOrder = 'asc';
+            break;
+          case 'price-desc':
+            params.sortBy = 'minPrice';
+            params.sortOrder = 'desc';
+            break;
+          case 'name-asc':
+            params.sortBy = 'title';
+            params.sortOrder = 'asc';
+            break;
+          case 'name-desc':
+            params.sortBy = 'title';
+            params.sortOrder = 'desc';
+            break;
+          default:
+            params.sortBy = 'createdAt';
+            params.sortOrder = 'desc';
         }
 
         const res = await api.get(url, { params });
-        console.log("API Response:", res.data);
+        console.log("Products API Response:", res.data);
 
-        // Handle response based on structure
-        let productsData = [];
-        let paginationData = null;
-
-        if (res.data.products && Array.isArray(res.data.products)) {
-          productsData = res.data.products;
+        if (res.data.success) {
+          setProducts(res.data.products || []);
           if (res.data.pagination) {
-            paginationData = res.data.pagination;
             setTotalPages(res.data.pagination.totalPages || 1);
             setTotalProducts(res.data.pagination.totalProducts || 0);
           }
-        } else if (Array.isArray(res.data)) {
-          productsData = res.data;
-          setTotalPages(1);
-          setTotalProducts(res.data.length);
         } else {
-          productsData = [];
+          throw new Error(res.data.error || "Failed to load products");
         }
-
-        setProducts(productsData);
 
       } catch (err) {
         console.error("Error fetching products:", err);
         setError("Failed to load products. Please try again.");
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -143,7 +205,6 @@ export default function CategoryPage() {
     } else {
       navigate(`/category/${cat}`);
     }
-    setShowFilters(false);
   };
 
   // Handle price change
@@ -171,9 +232,12 @@ export default function CategoryPage() {
   // Clear all filters
   const clearFilters = () => {
     setCurrentPage(1);
-    setPriceFilter([0, 1000000]);
+    setPriceFilter([
+      availableFilters.priceRange.minPrice || 0,
+      availableFilters.priceRange.maxPrice || 1000000
+    ]);
     setSelectedColors([]);
-    setSortBy("featured");
+    setSortBy("newest");
   };
 
   // Get product image
@@ -181,16 +245,14 @@ export default function CategoryPage() {
     if (product.mainImages && product.mainImages.length > 0 && product.mainImages[0].url) {
       return product.mainImages[0].url;
     }
-    if (product.images && product.images.length > 0 && product.images[0].url) {
-      return product.images[0].url;
-    }
+    // Fallback image
     return "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
   };
 
   // Get price display
   const getPriceDisplay = (product) => {
-    const basePrice = product.basePrice || 0;
-    const salePrice = product.baseSalePrice || product.salePrice;
+    const basePrice = product.basePrice || product.displayPrice || 0;
+    const salePrice = product.baseSalePrice || (product.displayPrice !== basePrice ? product.displayPrice : null);
     
     if (salePrice && salePrice < basePrice) {
       const discountPercent = Math.round(((basePrice - salePrice) / basePrice) * 100);
@@ -209,13 +271,27 @@ export default function CategoryPage() {
     return <span className="text-lg font-bold text-gray-900">₹{basePrice.toLocaleString()}</span>;
   };
 
-  // Modern Product Card Component
+  // Handle product click - navigate to product page by ID
+  const handleProductClick = (productId) => {
+    navigate(`/product/${productId}`);
+  };
+
+  // Handle add to cart
+  const handleAddToCart = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Add to cart logic here
+    console.log("Add to cart:", product._id);
+    // You can implement cart functionality here
+  };
+
+  // Modern Product Card Component (Grid View)
   const ProductCard = ({ product, index }) => {
     const [isHovered, setIsHovered] = useState(false);
 
     return (
       <motion.div
-        key={product._id || index}
+        key={product._id}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05 }}
@@ -223,7 +299,10 @@ export default function CategoryPage() {
         onMouseLeave={() => setIsHovered(false)}
         className="group"
       >
-        <Link to={`/product/${product._id}`} className="block">
+        <div 
+          onClick={() => handleProductClick(product._id)}
+          className="block cursor-pointer"
+        >
           <div className="relative overflow-hidden rounded-xl bg-white shadow-sm border border-gray-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             {/* Badge Container */}
             <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
@@ -232,9 +311,9 @@ export default function CategoryPage() {
                   <FiAward className="inline mr-1" /> Featured
                 </div>
               )}
-              {(product.overallDiscountPercentage > 0 || product.baseSalePrice < product.basePrice) && (
+              {product.hasDiscount && (
                 <div className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
-                  {Math.round(((product.basePrice - (product.baseSalePrice || product.basePrice)) / product.basePrice) * 100)}% OFF
+                  {Math.round(((product.basePrice - product.displayPrice) / product.basePrice) * 100)}% OFF
                 </div>
               )}
               {!product.inStock && (
@@ -265,6 +344,10 @@ export default function CategoryPage() {
                 className="w-full h-full object-cover"
                 animate={isHovered ? { scale: 1.05 } : { scale: 1 }}
                 transition={{ duration: 0.5 }}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
+                }}
               />
               
               {/* Quick View Overlay */}
@@ -278,7 +361,7 @@ export default function CategoryPage() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    navigate(`/product/${product._id}`);
+                    handleProductClick(product._id);
                   }}
                   className="px-6 py-3 bg-white text-gray-900 font-semibold rounded-lg flex items-center gap-2 hover:bg-[#b2965a] hover:text-white transition-all duration-300 transform hover:scale-105"
                 >
@@ -327,7 +410,7 @@ export default function CategoryPage() {
 
               {/* Short Description */}
               <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
-                {product.shortDescription || product.description || "Premium quality jewelry piece."}
+                {product.shortDescription || "Premium quality jewelry piece."}
               </p>
 
               {/* Price */}
@@ -344,10 +427,10 @@ export default function CategoryPage() {
                 }`}>
                   {product.inStock ? 'In Stock' : 'Out of Stock'}
                 </div>
-                {product.variants?.length > 0 && (
+                {product.availableColors?.length > 0 && (
                   <div className="flex items-center gap-1 text-xs text-gray-500">
                     <FiLayers className="w-3 h-3" />
-                    {product.variants.length} variants
+                    {product.availableColors.length} colors
                   </div>
                 )}
               </div>
@@ -358,19 +441,14 @@ export default function CategoryPage() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    navigate(`/product/${product._id}`);
+                    handleProductClick(product._id);
                   }}
                   className="flex-1 bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
                 >
                   <FiShoppingBag className="w-4 h-4" /> View Details
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Add to cart logic
-                    console.log("Add to cart:", product._id);
-                  }}
+                  onClick={(e) => handleAddToCart(e, product)}
                   className="w-10 h-10 bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-200 hover:text-[#b2965a] transition-all duration-300"
                   title="Add to Cart"
                 >
@@ -379,7 +457,7 @@ export default function CategoryPage() {
               </div>
             </div>
           </div>
-        </Link>
+        </div>
       </motion.div>
     );
   };
@@ -388,13 +466,16 @@ export default function CategoryPage() {
   const ProductListCard = ({ product, index }) => {
     return (
       <motion.div
-        key={product._id || index}
+        key={product._id}
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: index * 0.05 }}
         className="group"
       >
-        <Link to={`/product/${product._id}`} className="block">
+        <div 
+          onClick={() => handleProductClick(product._id)}
+          className="block cursor-pointer"
+        >
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-xl transition-all duration-300">
             <div className="flex flex-col md:flex-row">
               {/* Image Section */}
@@ -403,6 +484,10 @@ export default function CategoryPage() {
                   src={getProductImage(product)}
                   alt={product.title || "Product"}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
+                  }}
                 />
                 
                 {/* Badges */}
@@ -412,9 +497,9 @@ export default function CategoryPage() {
                       Featured
                     </div>
                   )}
-                  {(product.overallDiscountPercentage > 0 || product.baseSalePrice < product.basePrice) && (
+                  {product.hasDiscount && (
                     <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">
-                      {Math.round(((product.basePrice - (product.baseSalePrice || product.basePrice)) / product.basePrice) * 100)}% OFF
+                      {Math.round(((product.basePrice - product.displayPrice) / product.basePrice) * 100)}% OFF
                     </div>
                   )}
                 </div>
@@ -437,7 +522,7 @@ export default function CategoryPage() {
                       {product.title || "Untitled Product"}
                     </h3>
                     <p className="text-sm text-gray-600 line-clamp-2">
-                      {product.shortDescription || product.description || "Premium quality jewelry piece."}
+                      {product.shortDescription || "Premium quality jewelry piece."}
                     </p>
                   </div>
 
@@ -456,9 +541,9 @@ export default function CategoryPage() {
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-gray-500 mb-1">Variants</div>
-                      <div className="text-sm text-gray-700 flex items-center gap-1">
-                        <FiLayers className="w-3 h-3" /> {product.variants?.length || 0}
+                      <div className="text-xs text-gray-500 mb-1">Category</div>
+                      <div className="text-sm text-gray-700">
+                        {product.subCategory || "General"}
                       </div>
                     </div>
                     <div>
@@ -472,6 +557,11 @@ export default function CategoryPage() {
                             title={color?.name || "Gold"}
                           />
                         ))}
+                        {product.availableColors?.length > 3 && (
+                          <div className="text-xs text-gray-500">
+                            +{product.availableColors.length - 3} more
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -482,18 +572,14 @@ export default function CategoryPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        navigate(`/product/${product._id}`);
+                        handleProductClick(product._id);
                       }}
                       className="flex-1 bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-all"
                     >
                       <FiShoppingBag className="w-4 h-4" /> View Details
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        // Add to cart logic
-                      }}
+                      onClick={(e) => handleAddToCart(e, product)}
                       className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-gray-200 transition-all"
                     >
                       <FiShoppingCart className="w-4 h-4" /> Add to Cart
@@ -503,7 +589,7 @@ export default function CategoryPage() {
               </div>
             </div>
           </div>
-        </Link>
+        </div>
       </motion.div>
     );
   };
@@ -526,7 +612,7 @@ export default function CategoryPage() {
     <div className="min-h-screen pt-32 pb-40 flex items-center justify-center">
       <div className="text-center">
         <div className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
-          <FiXCircle className="w-10 h-10 text-red-500" />
+          <FiInfo className="w-10 h-10 text-red-500" />
         </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Products</h2>
         <p className="text-gray-600 mb-6">{error}</p>
@@ -545,13 +631,16 @@ export default function CategoryPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
             {category ? `${category} Collection` : "All Products"}
           </h1>
           <p className="text-gray-600">
             {category 
               ? `Browse our premium collection of ${category.toLowerCase()} jewelry` 
               : 'Discover our complete range of premium jewelry'}
+            <span className="block text-sm text-gray-500 mt-1">
+              {totalProducts} products available
+            </span>
           </p>
         </div>
 
@@ -559,20 +648,14 @@ export default function CategoryPage() {
           {/* Sidebar Filters */}
           <div className="lg:w-64 flex-shrink-0">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24">
-              {/* Mobile Filter Header */}
-              <div className="lg:hidden flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">Filters</h3>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <FiX className="w-5 h-5" />
-                </button>
-              </div>
+              <h3 className="font-bold text-gray-900 mb-6 text-lg">Filters</h3>
 
               {/* Categories */}
               <div className="mb-8">
-                <h4 className="font-bold text-gray-900 mb-4">Categories</h4>
+                <h4 className="font-bold text-gray-900 mb-4 flex items-center justify-between">
+                  <span>Categories</span>
+                  <span className="text-sm text-gray-500">{availableFilters.categories.length}</span>
+                </h4>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleCategoryChange('all')}
@@ -586,10 +669,10 @@ export default function CategoryPage() {
                   </button>
                   {FIXED_CATEGORIES.map((cat) => (
                     <button
-                      key={cat.title}
-                      onClick={() => handleCategoryChange(cat.title)}
+                      key={cat.value}
+                      onClick={() => handleCategoryChange(cat.value)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                        category === cat.title
+                        category === cat.value
                           ? 'bg-[#b2965a] text-white'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
@@ -605,47 +688,28 @@ export default function CategoryPage() {
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
                 <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-600 mb-1">Min</label>
-                      <input
-                        type="number"
-                        value={priceFilter[0]}
-                        onChange={(e) => handlePriceChange(Number(e.target.value), priceFilter[1])}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#b2965a] focus:ring-1 focus:ring-[#b2965a] outline-none"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-600 mb-1">Max</label>
-                      <input
-                        type="number"
-                        value={priceFilter[1]}
-                        onChange={(e) => handlePriceChange(priceFilter[0], Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#b2965a] focus:ring-1 focus:ring-[#b2965a] outline-none"
-                        placeholder="1000000"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>₹{priceFilter[0].toLocaleString()}</span>
+                    <span>₹{priceFilter[1].toLocaleString()}</span>
                   </div>
-                  <div className="pt-2">
+                  <div className="relative pt-4">
                     <input
                       type="range"
-                      min="0"
-                      max="1000000"
-                      step="10000"
+                      min={availableFilters.priceRange.minPrice || 0}
+                      max={availableFilters.priceRange.maxPrice || 1000000}
                       value={priceFilter[0]}
                       onChange={(e) => handlePriceChange(Number(e.target.value), priceFilter[1])}
-                      className="w-full"
+                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto"
                     />
                     <input
                       type="range"
-                      min="0"
-                      max="1000000"
-                      step="10000"
+                      min={availableFilters.priceRange.minPrice || 0}
+                      max={availableFilters.priceRange.maxPrice || 1000000}
                       value={priceFilter[1]}
                       onChange={(e) => handlePriceChange(priceFilter[0], Number(e.target.value))}
-                      className="w-full"
+                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto"
                     />
+                    <div className="h-2 bg-gray-200 rounded-full"></div>
                   </div>
                 </div>
               </div>
@@ -658,10 +722,10 @@ export default function CategoryPage() {
                     <button
                       key={color.name}
                       onClick={() => handleColorSelect(color.name)}
-                      className={`w-8 h-8 rounded-full border-2 ${
+                      className={`w-8 h-8 rounded-full border-2 transition-transform ${
                         selectedColors.includes(color.name)
-                          ? 'border-[#b2965a]'
-                          : 'border-gray-300'
+                          ? 'border-[#b2965a] scale-110'
+                          : 'border-gray-300 hover:scale-110'
                       }`}
                       style={{ backgroundColor: color.hexCode }}
                       title={color.name}
@@ -671,19 +735,22 @@ export default function CategoryPage() {
               </div>
 
               {/* Active Filters */}
-              {(priceFilter[0] > 0 || priceFilter[1] < 1000000 || selectedColors.length > 0) && (
-                <div className="pt-4 border-t border-gray-200">
+              {(priceFilter[0] > (availableFilters.priceRange.minPrice || 0) || 
+                priceFilter[1] < (availableFilters.priceRange.maxPrice || 1000000) || 
+                selectedColors.length > 0) && (
+                <div className="pt-6 border-t border-gray-200">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-bold text-gray-900">Active Filters</h4>
                     <button
                       onClick={clearFilters}
-                      className="text-sm text-[#b2965a] hover:text-[#9c8146]"
+                      className="text-sm text-[#b2965a] hover:text-[#9c8146] font-medium"
                     >
                       Clear All
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(priceFilter[0] > 0 || priceFilter[1] < 1000000) && (
+                    {(priceFilter[0] > (availableFilters.priceRange.minPrice || 0) || 
+                      priceFilter[1] < (availableFilters.priceRange.maxPrice || 1000000)) && (
                       <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
                         Price: ₹{priceFilter[0].toLocaleString()} - ₹{priceFilter[1].toLocaleString()}
                       </span>
@@ -705,10 +772,8 @@ export default function CategoryPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="text-gray-600 text-sm">
-                  Showing <span className="font-bold text-gray-900">{products.length}</span> products
-                  {totalProducts > 0 && (
-                    <span> of <span className="font-bold text-gray-900">{totalProducts}</span></span>
-                  )}
+                  Showing <span className="font-bold text-gray-900">{products.length}</span> of{" "}
+                  <span className="font-bold text-gray-900">{totalProducts}</span> products
                 </div>
                 
                 <div className="flex items-center gap-4">
@@ -717,27 +782,29 @@ export default function CategoryPage() {
                     <select
                       value={sortBy}
                       onChange={(e) => handleSortChange(e.target.value)}
-                      className="pl-4 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#b2965a] focus:ring-1 focus:ring-[#b2965a] outline-none appearance-none bg-white"
+                      className="pl-4 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#b2965a] focus:ring-1 focus:ring-[#b2965a] outline-none appearance-none bg-white min-w-[180px]"
                     >
                       {SORT_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
                       ))}
                     </select>
-                    <FiChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <FiChevronLeft className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none rotate-90" />
                   </div>
 
                   {/* View Mode */}
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <button
                       onClick={() => setViewMode("grid")}
-                      className={`p-2 rounded ${viewMode === "grid" ? "bg-white shadow-sm" : ""}`}
+                      className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-white shadow-sm text-[#b2965a]" : "text-gray-500 hover:text-gray-700"}`}
                       title="Grid View"
                     >
                       <FiGrid className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setViewMode("list")}
-                      className={`p-2 rounded ${viewMode === "list" ? "bg-white shadow-sm" : ""}`}
+                      className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-[#b2965a]" : "text-gray-500 hover:text-gray-700"}`}
                       title="List View"
                     >
                       <FiList className="w-4 h-4" />
@@ -751,7 +818,7 @@ export default function CategoryPage() {
             {products.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                 <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-                  <FiShoppingBag className="w-10 h-10 text-gray-400" />
+                  <FiPackage className="w-10 h-10 text-gray-400" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">No Products Found</h3>
                 <p className="text-gray-600 mb-6">Try adjusting your filters or browse all products</p>
@@ -769,7 +836,7 @@ export default function CategoryPage() {
                 ))}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {products.map((product, index) => (
                   <ProductListCard key={product._id} product={product} index={index} />
                 ))}
@@ -783,7 +850,7 @@ export default function CategoryPage() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                   >
                     <FiChevronLeft className="w-5 h-5" />
                   </button>
@@ -804,7 +871,7 @@ export default function CategoryPage() {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 flex items-center justify-center border rounded-lg font-medium ${
+                        className={`w-10 h-10 flex items-center justify-center border rounded-lg font-medium transition-colors ${
                           currentPage === pageNum
                             ? 'border-[#b2965a] bg-[#b2965a] text-white'
                             : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -818,7 +885,7 @@ export default function CategoryPage() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
-                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                   >
                     <FiChevronRight className="w-5 h-5" />
                   </button>

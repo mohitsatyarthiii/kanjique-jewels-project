@@ -29,6 +29,8 @@ import {
 } from "../controllers/adminProductController.js";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../config/cloudinaryConfig.js";
+import { Product } from "../models/Product.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -159,5 +161,47 @@ router.get("/public/products/category/:category", getProductsByCategory);
 
 // Get available filters
 router.get("/public/products/filters/available", getAvailableFilters);
+
+// Add this route for public product access by ID
+router.get("/public/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid product ID"
+      });
+    }
+
+    const product = await Product.findOne({ 
+      _id: id,
+      isActive: true 
+    })
+    .select('-__v -createdBy -updatedBy -updatedAt')
+    .lean();
+    
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Product not found" 
+      });
+    }
+    
+    // Filter only active variants
+    product.variants = product.variants.filter(variant => variant.isActive);
+    
+    res.json({
+      success: true,
+      product
+    });
+  } catch (err) {
+    console.error("Get product error:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: "Server error fetching product" 
+    });
+  }
+});
 
 export default router;
