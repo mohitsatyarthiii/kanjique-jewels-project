@@ -10,6 +10,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // If we have a stored token (fallback), attach it to axios defaults so
+    // the /me call can succeed even when cookies are not available.
+    const savedToken = localStorage.getItem("token");
+    if (savedToken) {
+      api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+    }
+
     const fetchMe = async () => {
       try {
         const res = await api.get("/api/auth/me");
@@ -29,18 +36,27 @@ export const AuthProvider = ({ children }) => {
   const login = async (form) => {
     const { data } = await api.post("/api/auth/login", form);
 
-    // Verify server-side session/cookie is set by calling /me.
-    // Some environments may not set cookies due to CORS or domain issues;
-    // only mark the client authenticated if the server confirms the session.
+    // If backend returned a token (fallback for cross-site cookie issues),
+    // store it and attach to axios defaults so subsequent calls (including
+    // /api/auth/me) will succeed via Authorization header.
+    if (data?.token) {
+      localStorage.setItem("token", data.token);
+      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+    }
+
+    // Verify server-side session/cookie (or token) by calling /me. Only set
+    // client auth when /me confirms the user.
     try {
       const meRes = await api.get("/api/auth/me");
       setUser(meRes.data.user);
       localStorage.setItem("user", JSON.stringify(meRes.data.user));
       return meRes.data.user;
     } catch (err) {
-      // If /me fails, clear any client-side user and surface error to caller
+      // If /me fails, clear any client-side state (including fallback token)
       setUser(null);
       localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      delete api.defaults.headers.common["Authorization"];
       throw err;
     }
   };
@@ -49,6 +65,8 @@ export const AuthProvider = ({ children }) => {
     await api.post("/api/auth/logout");
     setUser(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    delete api.defaults.headers.common["Authorization"];
   };
 
   return (

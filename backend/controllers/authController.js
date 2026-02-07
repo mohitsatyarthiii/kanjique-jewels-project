@@ -36,7 +36,10 @@ export const signup = async (req, res) => {
     setTokenCookie(res, token);
 
     const safeUser = { _id: user._id, name: user.name, email: user.email, role: user.role };
-    res.json({ ok: true, user: safeUser });
+    // Also return token in response as a fallback for SPA auth (used when cookies
+    // are blocked or cross-site cookies cannot be set). The backend still sets
+    // an httpOnly cookie for the primary flow.
+    res.json({ ok: true, user: safeUser, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
@@ -58,7 +61,9 @@ export const login = async (req, res) => {
     setTokenCookie(res, token);
 
     const safeUser = { _id: user._id, name: user.name, email: user.email, role: user.role };
-    res.json({ ok: true, user: safeUser });
+    // Return token alongside cookie to support SPAs that cannot rely on
+    // cross-site cookies in some environments.
+    res.json({ ok: true, user: safeUser, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
