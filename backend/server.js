@@ -33,8 +33,8 @@ const allowedOrigins = [
   "https://kanjique-jewels-project-2.onrender.com",
   "https://kanjiquejewels.com",
   "https://www.kanjiquejewels.com",
+  "http://kanjiquejewels.com",
   "http://localhost:5173",
-  "https://idyllic-twilight-fe4722.netlify.app/"
 ];
 
 app.use(cors({
