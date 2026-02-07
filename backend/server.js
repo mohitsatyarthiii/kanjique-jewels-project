@@ -32,7 +32,8 @@ connectDB();
 const allowedOrigins = [
   "https://kanjique-jewels-project-2.onrender.com",
   "https://kanjiquejewels.com",
-  "https://www.kanjiquejewels.com"
+  "https://www.kanjiquejewels.com",
+  "http://localhost:5173"
 ];
 
 app.use(cors({
@@ -52,7 +53,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api", productRoutes);
-app.use("/api/product", productsRoutes);
+app.use("/api", productsRoutes);
 app.use("/api/cart", cartRoutes); // Fixed: added /api/cart prefix
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
