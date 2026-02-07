@@ -29,9 +29,6 @@ import TermsConditions from "./pages/TermsAndConditions";
 import AdminProducts from "./pages/dashboard/components/AdminProducts";
 import AdminUsers from "./pages/dashboard/components/AdminUsers";
 import AdminOrders from "./pages/dashboard/components/AdminOrders";
-
-import { useLocalization } from "./hooks/useLocalization";
-import { LocalizationProvider } from "./context/LocalizationContext";
 import AdminLogin from "./pages/AdminLogin";
 
 function App() {

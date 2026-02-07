@@ -25,7 +25,7 @@ export default function LoginPage() {
 
     // ROLE BASED REDIRECT ✅
     if (user.role === "admin") {
-      navigate("/admin");
+      navigate("/admin/dashboard");
     } else {
       navigate("/");
     }
