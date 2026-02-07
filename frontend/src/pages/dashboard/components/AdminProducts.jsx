@@ -32,8 +32,9 @@ const MAIN_CATEGORIES = [
   { label: "Pendants", value: "Pendants" },
   { label: "Anklets", value: "Anklets" },
   { label: "Chains", value: "Chains" },
-  { label: "Sets", value: "Sets" },
-  { label: "Toe Rings", value: "Toe Rings" }
+  { label: "Mang Tikka", value: "Mang Tikka" },
+  { label: "Nath", value: "Nath" }
+  
 ];
 
 
