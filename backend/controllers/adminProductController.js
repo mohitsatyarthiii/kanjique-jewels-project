@@ -21,9 +21,9 @@ export const createProduct = async (req, res) => {
       metaDescription
     } = req.body;
 
-    if (!title || !basePrice || !category || !subCategory)
+    if (!title || !basePrice)
       return res.status(400).json({ 
-        error: "Title, base price, category and subcategory are required" 
+        error: "Title and base price are required" 
       });
 
     // Parse variants if provided as string
@@ -39,11 +39,12 @@ export const createProduct = async (req, res) => {
               error: "Each variant must have color name and hex code" 
             });
           }
-          if (!variant.size) {
-            return res.status(400).json({ 
-              error: "Each variant must have a size" 
-            });
-          }
+            // require size only for Rings or Bangles
+            if ((category === 'Rings' || category === 'Bangles') && !variant.size) {
+              return res.status(400).json({ 
+                error: "Each variant must have a size for Rings/Bangles" 
+              });
+            }
           if (!variant.price && !basePrice) {
             return res.status(400).json({ 
               error: "Variant price or base price is required" 
@@ -118,8 +119,10 @@ export const createProduct = async (req, res) => {
         price: variant.price ? parseFloat(variant.price) : parseFloat(basePrice),
         salePrice: variant.salePrice ? parseFloat(variant.salePrice) : undefined,
         discountPercentage: variant.discountPercentage ? parseFloat(variant.discountPercentage) : 0,
-        stockQuantity: parseInt(variant.stockQuantity),
+        stockQuantity: variant.stockQuantity !== undefined ? parseInt(variant.stockQuantity) : 0,
       })),
+      // If admin provided totalStock (product-level), save it so model can respect it when no variants
+      totalStock: req.body.totalStock !== undefined ? parseInt(req.body.totalStock) : undefined,
       metaTitle: metaTitle || title,
       metaDescription: metaDescription || shortDescription || description?.substring(0, 160),
       isFeatured: isFeatured === 'true' || isFeatured === true,
@@ -530,12 +533,13 @@ export const updateProduct = async (req, res) => {
               error: "Each variant must have color name and hex code" 
             });
           }
-          if (!variant.size) {
-            return res.status(400).json({ 
-              success: false,
-              error: "Each variant must have a size" 
-            });
-          }
+            // require size only for Rings or Bangles
+            if ((updates.category === 'Rings' || updates.category === 'Bangles' || existingProduct.category === 'Rings' || existingProduct.category === 'Bangles') && !variant.size) {
+              return res.status(400).json({ 
+                success: false,
+                error: "Each variant must have a size for Rings/Bangles" 
+              });
+            }
           if (!variant.price && !updates.basePrice) {
             return res.status(400).json({ 
               success: false,

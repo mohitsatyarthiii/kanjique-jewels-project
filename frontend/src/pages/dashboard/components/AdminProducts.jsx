@@ -29,7 +29,11 @@ const MAIN_CATEGORIES = [
   { label: "Necklaces", value: "Necklaces" },
   { label: "Earrings", value: "Earrings" },
   { label: "Bracelets", value: "Bracelets" },
-  { label: "Pendants", value: "Pendants" }
+  { label: "Pendants", value: "Pendants" },
+  { label: "Anklets", value: "Anklets" },
+  { label: "Chains", value: "Chains" },
+  { label: "Sets", value: "Sets" },
+  { label: "Toe Rings", value: "Toe Rings" }
 ];
 
 const SUB_CATEGORIES = {
@@ -40,6 +44,11 @@ const SUB_CATEGORIES = {
   "Bracelets": ["Gold Bracelets", "Diamond Bracelets", "Cuffs", "Chain Bracelets"],
   "Pendants": ["Gold Pendants", "Diamond Pendants", "Religious Pendants", "Heart Pendants"]
 };
+// Add empty/default subcategories for newly introduced categories
+SUB_CATEGORIES['Anklets'] = ["Gold Anklets", "Diamond Anklets", "Beaded Anklets"];
+SUB_CATEGORIES['Chains'] = ["Gold Chains", "Silver Chains", "Box Chains", "Cable Chains"];
+SUB_CATEGORIES['Sets'] = ["Necklace Sets", "Bangle Sets", "Earring Sets"];
+SUB_CATEGORIES['Toe Rings'] = ["Silver Toe Rings", "Gold Toe Rings"];
 
 // Available Colors with hex codes
 const AVAILABLE_COLORS = [
@@ -219,6 +228,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
     shortDescription: "",
     basePrice: "",
     baseSalePrice: "",
+    totalStock: "",
     overallDiscountPercentage: "",
     category: MAIN_CATEGORIES[0].value,
     subCategory: SUB_CATEGORIES[MAIN_CATEGORIES[0].value][0],
@@ -246,6 +256,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
         shortDescription: initialProduct.shortDescription || "",
         basePrice: initialProduct.basePrice || "",
         baseSalePrice: initialProduct.baseSalePrice || "",
+        totalStock: initialProduct.totalStock || "",
         overallDiscountPercentage: initialProduct.overallDiscountPercentage || "",
         category: initialProduct.category || MAIN_CATEGORIES[0].value,
         subCategory: initialProduct.subCategory || SUB_CATEGORIES[initialProduct.category]?.[0] || "",
@@ -272,6 +283,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
       shortDescription: "",
       basePrice: "",
       baseSalePrice: "",
+      totalStock: "",
       overallDiscountPercentage: "",
       category: MAIN_CATEGORIES[0].value,
       subCategory: SUB_CATEGORIES[MAIN_CATEGORIES[0].value][0],
@@ -482,7 +494,7 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                   value={formData.subCategory}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
-                  required
+                  
                 >
                   {SUB_CATEGORIES[formData.category]?.map(subCat => (
                     <option key={subCat} value={subCat}>{subCat}</option>
@@ -519,6 +531,20 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Total Stock (units)
+                </label>
+                <input
+                  type="number"
+                  name="totalStock"
+                  min="0"
+                  value={formData.totalStock}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-[#b2965a] focus:border-[#b2965a] outline-none"
                 />
               </div>
             </div>

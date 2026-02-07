@@ -5,16 +5,15 @@ const variantSchema = new mongoose.Schema({
     name: { type: String, required: true }, // e.g., "Red", "Blue"
     hexCode: { type: String, required: true }, // e.g., "#FF0000"
   },
+  // Size is optional for most categories; required only for Rings/Bangles (validated in pre-save)
   size: { 
-    type: String, 
-    enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Free Size'],
-    required: true 
+    type: String
   },
   stockQuantity: { type: Number, required: true, default: 0 },
   price: { type: Number, required: true }, // variant-specific price
   salePrice: { type: Number }, // variant-specific sale price
   discountPercentage: { type: Number, default: 0 }, // discount for this variant
-  sku: { type: String, unique: true }, // Stock Keeping Unit
+  sku: { type: String }, // Stock Keeping Unit
   images: [{ url: String, public_id: String }], // variant-specific images
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
@@ -32,8 +31,8 @@ const productSchema = new mongoose.Schema({
   minPrice: { type: Number },
   maxPrice: { type: Number },
   
-  category: { type: String, required: true },
-  subCategory: { type: String, required: true },
+  category: { type: String },
+  subCategory: { type: String },
   gender: { type: String, enum: ['men', 'women', 'kids', 'unisex'] }, // Added gender field
   brand: { type: String },
   
@@ -86,18 +85,36 @@ productSchema.pre('save', function(next) {
     this.availableColors = uniqueColors;
     
     // Update available sizes
-    const uniqueSizes = [...new Set(this.variants.map(v => v.size))];
+    const uniqueSizes = [...new Set(this.variants.map(v => v.size).filter(Boolean))];
     this.availableSizes = uniqueSizes;
     
     // Calculate total stock
-    this.totalStock = this.variants.reduce((sum, variant) => sum + variant.stockQuantity, 0);
+    this.totalStock = this.variants.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0);
     this.inStock = this.totalStock > 0;
+    
+    // Validate size presence for Rings/Bangles
+    const ringSizes = ['Size 5', 'Size 6', 'Size 7', 'Size 8', 'Size 9', 'Size 10', 'Size 11', 'Size 12'];
+    const bangleSizes = ['2.0"', '2.1"', '2.2"', '2.3"', '2.4"', '2.5"', '2.6"', '2.7"'];
+    if (this.category === 'Rings' || this.category === 'Bangles') {
+      for (const v of this.variants) {
+        if (!v.size) {
+          return next(new Error('Each variant must have a size for Rings/Bangles'));
+        }
+        if (this.category === 'Rings' && !ringSizes.includes(v.size)) {
+          return next(new Error('Invalid ring size'));
+        }
+        if (this.category === 'Bangles' && !bangleSizes.includes(v.size)) {
+          return next(new Error('Invalid bangle size'));
+        }
+      }
+    }
   } else {
     // If no variants, use base prices
     this.minPrice = this.baseSalePrice || this.basePrice;
     this.maxPrice = this.baseSalePrice || this.basePrice;
-    this.totalStock = 0;
-    this.inStock = false;
+    // Respect any provided totalStock; default to 0 if not provided
+    this.totalStock = typeof this.totalStock === 'number' ? this.totalStock : 0;
+    this.inStock = this.totalStock > 0;
   }
   
   next();
