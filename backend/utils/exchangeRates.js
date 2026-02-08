@@ -14,33 +14,16 @@ export async function getRates(base = 'INR') {
     return cache.rates;
   }
 
-  // Prefer exchangerate.host if API key provided, otherwise fallback to public free provider
-  const hostKey = process.env.EXCHANGE_RATE_HOST_KEY || process.env.EXCHANGE_API_KEY;
-
   try {
-    let data;
-
-    if (hostKey) {
-      // exchangerate.host now may require an access key; include if available
-      const res = await axios.get(`https://api.exchangerate.host/latest?base=${base}&access_key=${hostKey}`);
-      data = res.data;
-      // exchangerate.host historically returns { rates }
-      if (data && data.rates) {
-        cache = { timestamp: now, rates: data.rates, base };
-        return data.rates;
-      }
-      // If the provider returns an error object, throw
-      throw new Error(data?.error?.info || 'No rates received');
-    }
-
-    // Fallback: open.er-api.com (no key required)
-    const res2 = await axios.get(`https://open.er-api.com/v6/latest/${base}`);
-    data = res2.data;
-    // open.er-api returns either .rates or .conversion_rates depending on provider
-    const rates = data.rates || data.conversion_rates || data['conversion_rates'];
-    if (rates && Object.keys(rates).length) {
-      cache = { timestamp: now, rates, base };
-      return rates;
+    const res = await axios.get(`https://api.exchangerate.host/latest?base=${base}`);
+    const data = res.data;
+    if (data && data.rates) {
+      cache = {
+        timestamp: now,
+        rates: data.rates,
+        base,
+      };
+      return data.rates;
     }
     throw new Error('No rates received');
   } catch (err) {

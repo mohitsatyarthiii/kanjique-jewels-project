@@ -15,7 +15,6 @@ import {
 import { motion } from "framer-motion";
 import api from "../../utils/axiosInstance";
 import { useAuth } from "../../context/AuthContext";
-import { useCurrency } from "../../context/CurrencyContext";
 
 export default function BuyNowCheckout() {
   const navigate = useNavigate();
@@ -102,7 +101,6 @@ export default function BuyNowCheckout() {
         subtotal: orderData.subtotal,
         delivery: orderData.delivery,
         total: orderData.total,
-        currency: currency || 'INR',
       };
 
       console.log("Creating payment with payload:", paymentPayload);
@@ -274,7 +272,6 @@ export default function BuyNowCheckout() {
   }
 
   const { product, variant, quantity, price, subtotal, delivery, total } = orderData;
-  const { format, currency } = useCurrency() || {};
 
   // Get the correct image to display
   const getProductImage = () => {
@@ -350,7 +347,7 @@ export default function BuyNowCheckout() {
                     <span>Quantity: <span className="font-semibold">{quantity}</span></span>
                   </div>
                   <div className="text-lg font-bold text-gray-900">
-                    {format ? format(price) : `₹${price.toLocaleString()}`}
+                    ₹{price.toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -412,13 +409,13 @@ export default function BuyNowCheckout() {
                 <div className="p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-lg font-semibold text-gray-900">{format ? format(subtotal) : `₹${subtotal.toLocaleString()}`}</span>
+                    <span className="text-lg font-semibold text-gray-900">₹{subtotal.toLocaleString()}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Delivery</span>
                     <span className={`text-lg font-semibold ${delivery === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                      {delivery === 0 ? 'FREE' : (format ? format(delivery) : `₹${delivery.toLocaleString()}`)}
+                      {delivery === 0 ? 'FREE' : `₹${delivery.toLocaleString()}`}
                     </span>
                   </div>
 
@@ -426,7 +423,7 @@ export default function BuyNowCheckout() {
                     <div className="flex justify-between items-center">
                       <span className="text-xl font-bold text-gray-900">Total Amount</span>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-gray-900">{format ? format(total) : `₹${total.toLocaleString()}`}</div>
+                        <div className="text-3xl font-bold text-gray-900">₹{total.toLocaleString()}</div>
                         <div className="text-sm text-gray-500">Including all taxes</div>
                       </div>
                     </div>
@@ -467,7 +464,7 @@ export default function BuyNowCheckout() {
                 ) : (
                   <>
                     <Lock className="w-5 h-5" />
-                    Pay Securely {format ? format(total) : `₹${total.toLocaleString()}`}
+                    Pay Securely ₹{total.toLocaleString()}
                     <ChevronRight className="w-5 h-5" />
                   </>
                 )}

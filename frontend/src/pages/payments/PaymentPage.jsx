@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import api from "../../utils/axiosInstance";
-import { useCurrency } from '../../context/CurrencyContext';
 import { 
   MapPin, 
   Package, 
@@ -30,7 +29,6 @@ export default function TestCheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { format, currency } = useCurrency() || {};
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -77,8 +75,8 @@ const handlePayment = async () => {
       return;
     }
 
-    // First, create order on our server (include selected currency)
-    const orderRes = await api.post("/api/checkout/order", { currency: currency || 'INR' });
+    // First, create order on our server
+    const orderRes = await api.post("/api/checkout/order");
     const { order, key, payment_id } = orderRes.data;
 
     // Validate key format
@@ -347,7 +345,7 @@ const handlePayment = async () => {
               </div>
               <div>
                 <div className="text-sm font-semibold text-gray-900">Items in Cart</div>
-                <div className="text-xs text-gray-600">Total value: {format ? format(subtotal) : `₹${subtotal.toLocaleString()}`}</div>
+                <div className="text-xs text-gray-600">Total value: ₹{subtotal.toLocaleString()}</div>
               </div>
             </div>
           </div>
@@ -521,10 +519,10 @@ const handlePayment = async () => {
                             </div>
                             <div className="text-right">
                               <div className="text-lg font-bold text-gray-900">
-                                {format ? format(price * item.quantity) : `₹${(price * item.quantity).toLocaleString()}`}
+                                ₹{(price * item.quantity).toLocaleString()}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {format ? format(price) : `₹${price.toLocaleString()}`} each
+                                ₹{price.toLocaleString()} each
                               </div>
                             </div>
                           </div>
@@ -570,12 +568,12 @@ const handlePayment = async () => {
                 <div className="p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-lg font-semibold text-gray-900">{format ? format(subtotal) : `₹${subtotal.toLocaleString()}`}</span>
+                    <span className="text-lg font-semibold text-gray-900">₹{subtotal.toLocaleString()}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Premium Discount</span>
-                    <span className="text-lg font-semibold text-green-600">-{format ? format(discount) : `₹${discount.toLocaleString()}`}</span>
+                    <span className="text-lg font-semibold text-green-600">-₹{discount.toLocaleString()}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
@@ -589,7 +587,7 @@ const handlePayment = async () => {
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xl font-bold text-gray-900">Total Amount</span>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-gray-900">{format ? format(total) : `₹${total.toLocaleString()}`}</div>
+                        <div className="text-3xl font-bold text-gray-900">₹{total.toLocaleString()}</div>
                         <div className="text-sm text-gray-500">Including all taxes</div>
                       </div>
                     </div>
@@ -634,7 +632,7 @@ const handlePayment = async () => {
                   ) : (
                     <>
                       <Lock className="w-5 h-5" />
-                      Pay Securely {format ? format(total) : `₹${total.toLocaleString()}`}
+                      Pay Securely ₹{total.toLocaleString()}
                       <ChevronRight className="w-5 h-5" />
                     </>
                   )}

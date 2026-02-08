@@ -4,9 +4,14 @@ import api from "../utils/axiosInstance";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(
-    () => JSON.parse(localStorage.getItem("user")) || null
-  );
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,28 +66,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signup = async (form) => {
-    const { data } = await api.post("/api/auth/signup", form);
-
-    if (data?.token) {
-      localStorage.setItem("token", data.token);
-      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-    }
-
-    try {
-      const meRes = await api.get("/api/auth/me");
-      setUser(meRes.data.user);
-      localStorage.setItem("user", JSON.stringify(meRes.data.user));
-      return meRes.data.user;
-    } catch (err) {
-      setUser(null);
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-      delete api.defaults.headers.common["Authorization"];
-      throw err;
-    }
-  };
-
   const logout = async () => {
     await api.post("/api/auth/logout");
     setUser(null);
@@ -92,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, signup }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
