@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000",   // 🔥 FINAL LIVE BACKEND
+  baseURL: "https://api.kanjiquejewels.com",   // 🔥 FINAL LIVE BACKEND
   withCredentials: true, // MUST for cookies
   timeout: 10000,
   headers: {
