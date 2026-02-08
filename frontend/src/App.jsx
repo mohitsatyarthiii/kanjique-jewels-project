@@ -13,6 +13,7 @@ import ProductPage from "./pages/category/ProductPage";
 import OrdersPage from "./pages/dashboard/components/OrdersPage";
 import CartPage from "./pages/dashboard/components/CartPage";
 import TestCheckoutPage from "./pages/payments/PaymentPage";
+import BuyNowCheckout from "./pages/payments/BuyNowCheckout";
 import SuccessPage from "./pages/payments/components/SuccessPage";
 import FailurePage from "./pages/payments/components/FailurePage";
 import ProfilePage from "./pages/dashboard/ProfilePage";
@@ -93,7 +94,15 @@ function App() {
     }
   />
 
-  <Route path="/test-checkout" element={<TestCheckoutPage />} />
+  <Route path="/checkout" element={<TestCheckoutPage />} />
+  <Route 
+    path="/checkout/buy-now" 
+    element={
+      <ProtectedRoute>
+        <BuyNowCheckout />
+      </ProtectedRoute>
+    } 
+  />
   <Route path="/checkout/success" element={<SuccessPage />} />
   <Route path="/checkout/failure" element={<FailurePage />} />
 

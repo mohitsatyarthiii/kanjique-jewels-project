@@ -14,6 +14,7 @@ import {
 } from "react-icons/fi";
 import { MdOutlineAccountCircle, MdOutlineShoppingBag } from "react-icons/md";
 import SearchBar from "../../components/SearchBar";
+import CurrencySelector from './CurrencySelector';
 
 // Jewellery categories
 const categories = [
@@ -274,6 +275,11 @@ const Navbar = ({ homeTransparent = false }) => {
                     Login
                   </NavLink>
                 )}
+
+                {/* Currency selector */}
+                <div>
+                  <CurrencySelector />
+                </div>
               </div>
 
               {/* MOBILE ACTIONS */}

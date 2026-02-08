@@ -17,6 +17,7 @@ import userOrdersRoutes from "./routes/userOrdersRoutes.js";
 import adminStatsRoutes from "./routes/adminStatsRoutes.js";
 import adminOrderRoutes from "./routes/adminOrderRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
+import exchangeRoutes from './routes/exchangeRoutes.js';
 import { connectDB } from './config/db.js';
 
 dotenv.config();
@@ -44,6 +45,12 @@ app.use(cors({
 
 // Middleware
 app.use(cookieParser());
+
+// Webhook endpoint needs raw body for signature verification
+// This must come BEFORE express.json()
+app.use("/api/checkout/webhook", express.raw({type: 'application/json'}));
+
+// Regular JSON middleware for other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -57,11 +64,12 @@ app.use("/api", adminProductRoutes);
 app.use("/api/cart", cartRoutes); // Fixed: added /api/cart prefix
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
-app.use("/api/test/checkout", checkoutRoutes);// Fixed: added /api/checkout prefix
+app.use("/api/checkout", checkoutRoutes);// Fixed: added /api/checkout prefix
 app.use("/api/profile", profileRoutes); // Fixed: added /api/profile prefix
 app.use("/api/admin/stats", adminStatsRoutes);
 app.use("/api/user/orders", userOrdersRoutes);
 app.use("/api/location", locationRoutes); // Fixed: added /api/location prefix
+app.use('/api/exchange', exchangeRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

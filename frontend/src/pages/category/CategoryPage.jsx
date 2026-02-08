@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../utils/axiosInstance";
+import { useCurrency } from '../../context/CurrencyContext';
 import { 
   FiFilter, 
   FiStar, 
@@ -85,6 +86,7 @@ export default function CategoryPage() {
     priceRange: { minPrice: 0, maxPrice: 1000000 }
   });
   const itemsPerPage = 12;
+  const { format } = useCurrency() || {};
 
   // Fetch available filters
   useEffect(() => {
@@ -320,8 +322,8 @@ export default function CategoryPage() {
       return (
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-gray-900">₹{salePrice.toLocaleString()}</span>
-            <span className="text-sm text-gray-500 line-through">₹{basePrice.toLocaleString()}</span>
+            <span className="text-lg font-bold text-gray-900">{format ? format(salePrice) : `₹${salePrice.toLocaleString()}`}</span>
+            <span className="text-sm text-gray-500 line-through">{format ? format(basePrice) : `₹${basePrice.toLocaleString()}`}</span>
           </div>
           <span className="text-xs text-red-600 font-semibold mt-1">
             Save {discountPercent}%
@@ -329,7 +331,7 @@ export default function CategoryPage() {
         </div>
       );
     }
-    return <span className="text-lg font-bold text-gray-900">₹{basePrice.toLocaleString()}</span>;
+    return <span className="text-lg font-bold text-gray-900">{format ? format(basePrice) : `₹${basePrice.toLocaleString()}`}</span>;
   };
 
   // Handle product click - navigate to product page by ID
@@ -801,7 +803,7 @@ export default function CategoryPage() {
                       priceFilter[1] < (availableFilters.priceRange.maxPrice || 1000000)) && (
                       <span className="px-3 py-1.5 bg-[#b2965a]/10 text-[#b2965a] text-sm rounded-full border border-[#b2965a]/20 flex items-center gap-1">
                         <FiTag className="w-3 h-3" />
-                        Price: ₹{priceFilter[0].toLocaleString()} - ₹{priceFilter[1].toLocaleString()}
+                        Price: {format ? format(priceFilter[0]) : `₹${priceFilter[0].toLocaleString()}`} - {format ? format(priceFilter[1]) : `₹${priceFilter[1].toLocaleString()}`}
                       </span>
                     )}
                     {selectedColors.map(color => (

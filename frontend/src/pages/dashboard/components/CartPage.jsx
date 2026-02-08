@@ -399,7 +399,7 @@ export default function CartPage() {
                   {/* CTA Button */}
                   <div className="p-6 pt-0">
                     <button
-                      onClick={() => navigate("/test-checkout")}
+                      onClick={() => navigate("/checkout")}
                       className="w-full bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-3"
                     >
                       <Lock className="w-5 h-5" />
@@ -408,31 +408,7 @@ export default function CartPage() {
                     </button>
                   </div>
 
-                  {/* Benefits */}
-                  <div className="p-6 border-t border-gray-200 bg-gray-50/50">
-                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <Shield className="w-5 h-5 text-[#b2965a]" />
-                      Premium Benefits
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>30-Day Easy Returns</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>Free Gift Packaging</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>Insurance Covered Shipping</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>Secure Payment</span>
-                      </div>
-                    </div>
-                  </div>
+                 
                 </div>
 
                 {/* Continue Shopping */}
@@ -449,39 +425,7 @@ export default function CartPage() {
         )}
 
         {/* Cart Tips */}
-        {cart.items.length > 0 && (
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 bg-white rounded-2xl border border-gray-200">
-              <div className="flex items-center gap-3 mb-4">
-                <Shield className="w-8 h-8 text-[#b2965a]" />
-                <div>
-                  <h4 className="font-bold text-gray-900">Secure Purchase</h4>
-                  <p className="text-sm text-gray-600">256-bit SSL encryption</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 bg-white rounded-2xl border border-gray-200">
-              <div className="flex items-center gap-3 mb-4">
-                <RefreshCw className="w-8 h-8 text-[#b2965a]" />
-                <div>
-                  <h4 className="font-bold text-gray-900">Easy Returns</h4>
-                  <p className="text-sm text-gray-600">30-day return policy</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 bg-white rounded-2xl border border-gray-200">
-              <div className="flex items-center gap-3 mb-4">
-                <Truck className="w-8 h-8 text-[#b2965a]" />
-                <div>
-                  <h4 className="font-bold text-gray-900">Fast Delivery</h4>
-                  <p className="text-sm text-gray-600">3-5 business days</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+       
       </div>
     </div>
   );

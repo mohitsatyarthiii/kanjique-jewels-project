@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import api from "../utils/axiosInstance";
+import { useCurrency } from '../context/CurrencyContext';
 import {
   FiFilter,
   FiGrid,
@@ -46,6 +47,7 @@ export default function ProductsPage() {
     priceRange: { minPrice: 0, maxPrice: 500000 }
   });
   const itemsPerPage = 30;
+  const { format } = useCurrency() || {};
 
   // Categories for filter sidebar (icons removed)
   const categories = [
@@ -312,8 +314,8 @@ export default function ProductsPage() {
       return (
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-gray-900">₹{salePrice.toLocaleString()}</span>
-            <span className="text-sm text-gray-500 line-through">₹{basePrice.toLocaleString()}</span>
+            <span className="text-lg font-bold text-gray-900">{format ? format(salePrice) : `₹${salePrice.toLocaleString()}`}</span>
+            <span className="text-sm text-gray-500 line-through">{format ? format(basePrice) : `₹${basePrice.toLocaleString()}`}</span>
           </div>
           <span className="text-xs text-red-600 font-semibold mt-1">
             Save {discountPercent}%
@@ -321,7 +323,7 @@ export default function ProductsPage() {
         </div>
       );
     }
-    return <span className="text-lg font-bold text-gray-900">₹{basePrice.toLocaleString()}</span>;
+    return <span className="text-lg font-bold text-gray-900">{format ? format(basePrice) : `₹${basePrice.toLocaleString()}`}</span>;
   };
 
   // Modern Product Card Component (Grid View)
@@ -730,8 +732,8 @@ export default function ProductsPage() {
                 <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-700">₹{priceFilter[0].toLocaleString()}</span>
-                    <span className="font-medium text-gray-700">₹{priceFilter[1].toLocaleString()}</span>
+                    <span className="font-medium text-gray-700">{format ? format(priceFilter[0]) : `₹${priceFilter[0].toLocaleString()}`}</span>
+                    <span className="font-medium text-gray-700">{format ? format(priceFilter[1]) : `₹${priceFilter[1].toLocaleString()}`}</span>
                   </div>
                   <div className="relative pt-1">
                     <div className="h-2 bg-gray-200 rounded-full">

@@ -1,20 +1,36 @@
 import express from "express";
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { 
-  createTestOrder, 
-  getTestPayments,
-  verifyPayment 
+  createOrder, 
+  verifyPayment,
+  razorpayWebhook,
+  getOrderDetails,
+  getUserOrders,
+  cancelOrder,
+  buyNow
 } from "../controllers/checkoutController.js";
 
 const router = express.Router();
 
-// Create test order
-router.post("/order", requireAuth, createTestOrder);
+// Create order from cart
+router.post("/order", requireAuth, createOrder);
 
-// Verify payment
+// Buy Now - Direct checkout
+router.post("/buy-now", requireAuth, buyNow);
+
+// Verify payment (client-side)
 router.post("/verify", requireAuth, verifyPayment);
 
-// Get user test payments
-router.get("/payments", requireAuth, getTestPayments);
+// Razorpay webhook (no auth required for webhook)
+router.post("/webhook", razorpayWebhook);
+
+// Get order details
+router.get("/order/:orderId", requireAuth, getOrderDetails);
+
+// Get user orders
+router.get("/orders", requireAuth, getUserOrders);
+
+// Cancel order
+router.put("/order/:orderId/cancel", requireAuth, cancelOrder);
 
 export default router;

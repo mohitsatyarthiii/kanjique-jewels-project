@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../utils/axiosInstance";
+import { useCurrency } from '../../context/CurrencyContext';
 import { 
   MapPin, 
   Package, 
@@ -29,6 +30,7 @@ export default function TestCheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const { format, currency } = useCurrency() || {};
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -59,29 +61,49 @@ const handlePayment = async () => {
     return;
   }
 
+  // Check if Razorpay is loaded
+  if (!window.Razorpay) {
+    alert("Payment gateway is not loaded. Please refresh the page and try again.");
+    return;
+  }
+
   setIsProcessing(true);
 
   try {
-    // First save address if not already saved
+    // Save address if needed
     if (!address.trim()) {
       alert("Please add a delivery address");
+      setIsProcessing(false);
       return;
     }
 
-    const res = await api.post("/api/test/checkout/order");
-    const { order, key } = res.data;
+    // First, create order on our server (include selected currency)
+    const orderRes = await api.post("/api/checkout/order", { currency: currency || 'INR' });
+    const { order, key, payment_id } = orderRes.data;
 
-    // Get user info for prefill (you need to fetch user data)
+    // Validate key format
+    if (!key || !key.startsWith('rzp_live_')) {
+      console.error("Invalid Razorpay key. Expected live key (rzp_live_*), got:", key);
+      alert("Payment configuration error. Please contact support.");
+      setIsProcessing(false);
+      return;
+    }
+
+    console.log("Using Razorpay Key:", key.substring(0, 15) + "...");
+    console.log("Order Details:", { amount: order.amount, currency: order.currency });
+
+    // Fetch user data for prefill
     let userData = {};
     try {
       const profileRes = await api.get("/api/profile");
       userData = profileRes.data.user;
     } catch (err) {
-      console.log("Could not fetch user profile, using default prefill");
+      console.log("Could not fetch user profile");
     }
 
+    // Razorpay options
     const options = {
-      key,
+      key, // This is the actual payment gateway key (live or test)
       amount: order.amount,
       currency: order.currency,
       name: "KANJIQUE JEWELS",
@@ -89,22 +111,31 @@ const handlePayment = async () => {
       order_id: order.id,
       handler: async function (response) {
         try {
-          // Verify payment
-          const verifyRes = await api.post("/api/test/checkout/verify", {
+          console.log("Payment successful, verifying signature...", {
+            orderId: response.razorpay_order_id,
+            paymentId: response.razorpay_payment_id
+          });
+
+          // Verify payment with shipping address
+          const verifyRes = await api.post("/api/checkout/verify", {
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
+            razorpay_signature: response.razorpay_signature,
+            payment_id: payment_id,
+            shippingAddress: address,
           });
 
           if (verifyRes.data.success) {
-            window.location.href = `/checkout/success?payment_id=${response.razorpay_payment_id}&order_id=${response.razorpay_order_id}`;
+            console.log("Payment verified successfully");
+            // Redirect to success page with order details
+            window.location.href = `/checkout/success?order_id=${verifyRes.data.order.id}&payment_id=${verifyRes.data.payment.razorpay_payment_id}`;
           } else {
-            alert("Payment verification failed");
+            alert("Payment verification failed. Please contact support.");
             setIsProcessing(false);
           }
         } catch (verifyErr) {
           console.error("Verification error:", verifyErr);
-          alert("Payment verification failed");
+          alert("Payment verification failed. Please contact support.");
           setIsProcessing(false);
         }
       },
@@ -119,51 +150,101 @@ const handlePayment = async () => {
       },
       modal: {
         ondismiss: function() {
+          console.log("Payment modal dismissed");
           setIsProcessing(false);
-        }
+        },
+        escape: false, // Prevent closing with ESC
       },
       notes: {
-        address: "KANJIQUE JEWELS"
+        address: address,
+        payment_id: payment_id
       },
       config: {
         display: {
           blocks: {
             banks: {
-              name: 'Pay using Banks',
+              name: 'Credit/Debit Cards',
               instruments: [
                 {
                   method: 'card',
-                  issuers: ['MASTERCARD', 'VISA']
-                },
+                  issuers: ['MASTERCARD', 'VISA', 'RUPAY']
+                }
+              ]
+            },
+            netbanking: {
+              name: 'Net Banking',
+              instruments: [
                 {
                   method: 'netbanking',
-                  banks: ['HDFC', 'ICICI', 'SBI', 'AXIS']
+                  banks: ['HDFC', 'ICICI', 'SBI', 'AXIS', 'KOTAK', 'YESBANK']
                 }
               ]
             },
             upi: {
-              name: "Pay using UPI",
+              name: "UPI",
               instruments: [
                 {
                   method: 'upi',
-                  flows: ['collect']
+                  flows: ['collect', 'intent', 'qr']
+                }
+              ]
+            },
+            wallet: {
+              name: "Wallets",
+              instruments: [
+                {
+                  method: 'wallet',
+                  wallets: ['paytm', 'phonepe', 'amazonpay', 'freecharge', 'mobikwik']
                 }
               ]
             }
           },
-          sequence: ['block.banks', 'block.upi'],
+          sequence: ['block.banks', 'block.netbanking', 'block.upi', 'block.wallet'],
           preferences: {
             show_default_blocks: true
           }
         }
-      }
+      },
+      retry: {
+        enabled: true,
+        max_count: 2
+      },
+      timeout: 900, // 15 minutes
+      remember_customer: true
     };
 
+    console.log("Opening Razorpay with options:", {
+      key: options.key.substring(0, 15) + "...",
+      amount: options.amount,
+      orderId: options.order_id
+    });
+
     const rzp = new window.Razorpay(options);
+    
+    // Add event listeners for better UX
+    rzp.on('payment.failed', function (response) {
+      console.error('Payment failed:', response.error);
+      alert(`Payment failed: ${response.error.description}`);
+      setIsProcessing(false);
+    });
+
+    rzp.on('payment.authorized', function (response) {
+      console.log('Payment authorized:', response.razorpay_payment_id);
+    });
+
     rzp.open();
   } catch (err) {
     console.error("Payment error:", err);
-    alert(err.response?.data?.error || "Failed to initiate payment");
+    
+    // User-friendly error messages
+    let errorMessage = "Failed to initiate payment";
+    if (err.response?.data?.error) {
+      errorMessage = err.response.data.error;
+    } else if (err.message.includes("Network Error")) {
+      errorMessage = "Network error. Please check your connection.";
+    }
+    
+    alert(errorMessage);
     setIsProcessing(false);
   }
 };
@@ -226,9 +307,14 @@ const handlePayment = async () => {
     return sum + (price * item.quantity);
   }, 0);
 
+  // Calculate delivery fee (free above ₹5000)
+  const delivery = subtotal > 5000 ? 0 : 99;
+
   // Calculate discount (simplified logic)
   const discount = subtotal > 10000 ? 500 : 0;
-  const total = subtotal - discount;
+  
+  // Total includes subtotal + delivery - discount
+  const total = subtotal + delivery - discount;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-[#fef8e9]/10 pt-32 pb-40 relative overflow-hidden">
@@ -261,7 +347,7 @@ const handlePayment = async () => {
               </div>
               <div>
                 <div className="text-sm font-semibold text-gray-900">Items in Cart</div>
-                <div className="text-xs text-gray-600">Total value: ₹{subtotal.toLocaleString()}</div>
+                <div className="text-xs text-gray-600">Total value: {format ? format(subtotal) : `₹${subtotal.toLocaleString()}`}</div>
               </div>
             </div>
           </div>
@@ -435,10 +521,10 @@ const handlePayment = async () => {
                             </div>
                             <div className="text-right">
                               <div className="text-lg font-bold text-gray-900">
-                                ₹{(price * item.quantity).toLocaleString()}
+                                {format ? format(price * item.quantity) : `₹${(price * item.quantity).toLocaleString()}`}
                               </div>
                               <div className="text-sm text-gray-500">
-                                ₹{price.toLocaleString()} each
+                                {format ? format(price) : `₹${price.toLocaleString()}`} each
                               </div>
                             </div>
                           </div>
@@ -484,24 +570,26 @@ const handlePayment = async () => {
                 <div className="p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-lg font-semibold text-gray-900">₹{subtotal.toLocaleString()}</span>
+                    <span className="text-lg font-semibold text-gray-900">{format ? format(subtotal) : `₹${subtotal.toLocaleString()}`}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Premium Discount</span>
-                    <span className="text-lg font-semibold text-green-600">-₹{discount.toLocaleString()}</span>
+                    <span className="text-lg font-semibold text-green-600">-{format ? format(discount) : `₹${discount.toLocaleString()}`}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Delivery</span>
-                    <span className="text-lg font-semibold text-green-600">FREE</span>
+                    <span className={`text-lg font-semibold ${delivery === 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                      {delivery === 0 ? 'FREE' : `₹${delivery.toLocaleString()}`}
+                    </span>
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xl font-bold text-gray-900">Total Amount</span>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-gray-900">₹{total.toLocaleString()}</div>
+                        <div className="text-3xl font-bold text-gray-900">{format ? format(total) : `₹${total.toLocaleString()}`}</div>
                         <div className="text-sm text-gray-500">Including all taxes</div>
                       </div>
                     </div>
@@ -546,7 +634,7 @@ const handlePayment = async () => {
                   ) : (
                     <>
                       <Lock className="w-5 h-5" />
-                      Pay Securely ₹{total.toLocaleString()}
+                      Pay Securely {format ? format(total) : `₹${total.toLocaleString()}`}
                       <ChevronRight className="w-5 h-5" />
                     </>
                   )}
