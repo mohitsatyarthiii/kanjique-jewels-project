@@ -9,33 +9,39 @@ export const AuthProvider = ({ children }) => {
       const stored = localStorage.getItem("user");
       return stored ? JSON.parse(stored) : null;
     } catch (e) {
+      console.error("Failed to parse user from localStorage:", e);
       return null;
     }
   });
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // If we have a stored token (fallback), attach it to axios defaults so
-    // the /me call can succeed even when cookies are not available.
-    const savedToken = localStorage.getItem("token");
-    if (savedToken) {
-      api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
-    }
-
-    const fetchMe = async () => {
+    // If user was previously logged in, don't set loading to true
+    // This prevents unnecessary redirects
+    const checkAuth = async () => {
       try {
-        const res = await api.get("/api/auth/me");
+        const savedToken = localStorage.getItem("token");
+        if (savedToken) {
+          api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+        }
+
+        const res = await api.get("/api/auth/me", { timeout: 5000 });
         setUser(res.data.user);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-      } catch {
+      } catch (err) {
+        // User is not authenticated, clear stored data
         setUser(null);
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        delete api.defaults.headers.common["Authorization"];
       } finally {
         setLoading(false);
+        setAuthChecked(true);
       }
     };
 
-    fetchMe();
+    checkAuth();
   }, []);
 
   const login = async (form) => {
@@ -67,7 +73,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await api.post("/api/auth/logout");
+    try {
+      await api.post("/api/auth/logout");
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
     setUser(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -75,7 +85,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, authChecked }}>
       {children}
     </AuthContext.Provider>
   );

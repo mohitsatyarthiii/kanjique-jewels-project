@@ -1,9 +1,8 @@
 import { useState } from "react";
 
 const slides = [
-  "https://i.postimg.cc/26kspQMN/2.png",
-  "https://i.postimg.cc/sXTt3BC4/1.png",
   "https://i.postimg.cc/gJgfGwbR/3.png",
+  "https://i.postimg.cc/sXTt3BC4/1.png",
   "https://i.postimg.cc/xC6W9kVK/4.png",
   "https://i.postimg.cc/j5MGRWYP/6.png",
 ];

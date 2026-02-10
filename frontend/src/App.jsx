@@ -31,6 +31,7 @@ import AdminProducts from "./pages/dashboard/components/AdminProducts";
 import AdminUsers from "./pages/dashboard/components/AdminUsers";
 import AdminOrders from "./pages/dashboard/components/AdminOrders";
 import AdminLogin from "./pages/AdminLogin";
+import WhatsAppFloat from "./components/WhatsAppFloat";
 
 function App() {
 
@@ -126,6 +127,7 @@ function App() {
 
           {/* Footer */}
           {!isAdminRoute && <Footer />}
+          {!isAdminRoute && <WhatsAppFloat />}
         </div>
       </CartNotificationProvider>
     </>
