@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../../utils/axiosInstance";
+import { useCurrency } from '../../../context/CurrencyContext';
 import {
   ShoppingBag,
   Trash2,
@@ -30,6 +31,9 @@ export default function CartPage() {
   const [updating, setUpdating] = useState(null);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  // Get currency functions
+  const { format: formatPrice, currency, rates, loading: currencyLoading, convertAmount } = useCurrency();
 
   useEffect(() => {
     fetchCart();
@@ -123,7 +127,19 @@ export default function CartPage() {
     return product.basePrice || item.price || 0;
   };
 
-  if (loading) {
+  const getProductOriginalPrice = (item) => {
+    const product = item.product;
+    if (!product) return null;
+    
+    // Return original price if on sale
+    if (product.baseSalePrice && product.baseSalePrice < product.basePrice) {
+      return product.basePrice;
+    }
+    
+    return null;
+  };
+
+  if (loading || currencyLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-white to-[#fef8e9]/10 pt-32 pb-40 flex items-center justify-center">
         <div className="text-center">
@@ -154,7 +170,7 @@ export default function CartPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-        {/* Header */}
+        {/* Header - UPDATED */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -164,6 +180,17 @@ export default function CartPage() {
               <p className="text-gray-600">
                 {cart.items.length} item{cart.items.length !== 1 ? 's' : ''} in your cart
               </p>
+            </div>
+            
+            {/* Currency Display */}
+            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+              <span className="text-sm text-gray-600">Prices in </span>
+              <span className="font-bold text-[#b2965a]">{currency}</span>
+              {currency !== 'INR' && rates[currency] && (
+                <span className="text-xs text-gray-500 ml-2">
+                  (1 INR = {rates[currency].toFixed(4)} {currency})
+                </span>
+              )}
             </div>
             
             {cart.items.length > 0 && (
@@ -215,136 +242,151 @@ export default function CartPage() {
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Cart Items */}
+            {/* Cart Items - UPDATED */}
             <div className="lg:col-span-2 space-y-6">
               <AnimatePresence>
-                {cart.items.map((item, index) => (
-                  <motion.div
-                    key={`${item.product?._id}-${item.variant || 'no-variant'}`}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
-                  >
-                    <div className="flex flex-col md:flex-row gap-6 p-6">
-                      {/* Product Image */}
-                      <div className="w-full md:w-48 h-48 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                        <Link to={`/product/${item.product?._id}`}>
-                          <img
-                            src={getProductImage(item.product)}
-                            alt={item.product?.title}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                          />
-                        </Link>
-                      </div>
-
-                      {/* Product Details */}
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <Link to={`/product/${item.product?._id}`}>
-                              <h3 className="text-xl font-bold text-gray-900 hover:text-[#b2965a] transition-colors">
-                                {item.product?.title}
-                              </h3>
-                            </Link>
-                            <p className="text-gray-600 capitalize mt-1">
-                              {item.product?.category}
-                            </p>
-                            
-                            {/* Variant Details */}
-                            {item.variantDetails && (
-                              <div className="mt-2 flex items-center gap-3">
-                                {item.variantDetails.color && (
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="w-4 h-4 rounded-full border border-gray-300"
-                                      style={{ backgroundColor: item.variantDetails.color.hexCode }}
-                                    />
-                                    <span className="text-sm text-gray-600">{item.variantDetails.color.name}</span>
-                                  </div>
-                                )}
-                                {item.variantDetails.size && (
-                                  <span className="text-sm text-gray-600">Size: {item.variantDetails.size}</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-gray-900 mb-1">
-                              ₹{(getProductPrice(item) * item.quantity).toLocaleString()}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              ₹{getProductPrice(item).toLocaleString()} each
-                            </div>
-                            
-                            {/* Show savings if sale price */}
-                            {item.product?.baseSalePrice && item.product.baseSalePrice < item.product.basePrice && (
-                              <div className="text-sm text-green-600 mt-1">
-                                Save ₹{((item.product.basePrice - item.product.baseSalePrice) * item.quantity).toLocaleString()}
-                              </div>
-                            )}
-                          </div>
+                {cart.items.map((item, index) => {
+                  const price = getProductPrice(item);
+                  const originalPrice = getProductOriginalPrice(item);
+                  const totalPrice = price * item.quantity;
+                  const savings = originalPrice ? (originalPrice - price) * item.quantity : 0;
+                  
+                  return (
+                    <motion.div
+                      key={`${item.product?._id}-${item.variant || 'no-variant'}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
+                    >
+                      <div className="flex flex-col md:flex-row gap-6 p-6">
+                        {/* Product Image */}
+                        <div className="w-full md:w-48 h-48 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                          <Link to={`/product/${item.product?._id}`}>
+                            <img
+                              src={getProductImage(item.product)}
+                              alt={item.product?.title}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                          </Link>
                         </div>
 
-                        {/* Stock Status */}
-                        <div className="mb-4">
-                          {item.product?.inStock ? (
-                            <span className="inline-flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                              <Check className="w-3 h-3" /> In Stock
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full">
-                              <AlertCircle className="w-3 h-3" /> Out of Stock
-                            </span>
-                          )}
-                        </div>
+                        {/* Product Details */}
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <Link to={`/product/${item.product?._id}`}>
+                                <h3 className="text-xl font-bold text-gray-900 hover:text-[#b2965a] transition-colors">
+                                  {item.product?.title}
+                                </h3>
+                              </Link>
+                              <p className="text-gray-600 capitalize mt-1">
+                                {item.product?.category}
+                              </p>
+                              
+                              {/* Variant Details */}
+                              {item.variantDetails && (
+                                <div className="mt-2 flex items-center gap-3">
+                                  {item.variantDetails.color && (
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className="w-4 h-4 rounded-full border border-gray-300"
+                                        style={{ backgroundColor: item.variantDetails.color.hexCode }}
+                                      />
+                                      <span className="text-sm text-gray-600">{item.variantDetails.color.name}</span>
+                                    </div>
+                                  )}
+                                  {item.variantDetails.size && (
+                                    <span className="text-sm text-gray-600">Size: {item.variantDetails.size}</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
 
-                        {/* Quantity Controls */}
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                          <div className="flex items-center gap-4">
-                            <span className="text-sm font-semibold text-gray-700">Quantity:</span>
-                            <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-                              <button
-                                onClick={() => updateQuantity(item.product?._id, item.quantity - 1, item.variant)}
-                                disabled={updating === item.product?._id || item.quantity <= 1}
-                                className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="px-4 py-2 text-lg font-bold text-gray-900 min-w-[40px] text-center border-x">
-                                {updating === item.product?._id ? "..." : item.quantity}
+                            <div className="text-right">
+                              {/* Price with currency formatting */}
+                              <div className="text-2xl font-bold text-gray-900 mb-1">
+                                {formatPrice(totalPrice)}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {formatPrice(price)} each
+                              </div>
+                              
+                              {/* Show savings if sale price */}
+                              {originalPrice && (
+                                <div className="text-sm text-green-600 mt-1">
+                                  Save {formatPrice(savings)}
+                                </div>
+                              )}
+
+                              {/* Currency indicator for non-INR */}
+                              {currency !== 'INR' && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Converted from ₹{price.toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Stock Status */}
+                          <div className="mb-4">
+                            {item.product?.inStock ? (
+                              <span className="inline-flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                                <Check className="w-3 h-3" /> In Stock
                               </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-2 text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full">
+                                <AlertCircle className="w-3 h-3" /> Out of Stock
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quantity Controls */}
+                          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm font-semibold text-gray-700">Quantity:</span>
+                              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                                <button
+                                  onClick={() => updateQuantity(item.product?._id, item.quantity - 1, item.variant)}
+                                  disabled={updating === item.product?._id || item.quantity <= 1}
+                                  className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="px-4 py-2 text-lg font-bold text-gray-900 min-w-[40px] text-center border-x">
+                                  {updating === item.product?._id ? "..." : item.quantity}
+                                </span>
+                                <button
+                                  onClick={() => updateQuantity(item.product?._id, item.quantity + 1, item.variant)}
+                                  disabled={updating === item.product?._id}
+                                  className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-4">
                               <button
-                                onClick={() => updateQuantity(item.product?._id, item.quantity + 1, item.variant)}
-                                disabled={updating === item.product?._id}
-                                className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+                                onClick={() => removeItem(item.product?._id, item.variant)}
+                                className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors"
                               >
-                                <Plus className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
+                                Remove
                               </button>
                             </div>
                           </div>
-
-                          {/* Actions */}
-                          <div className="flex gap-4">
-                            <button
-                              onClick={() => removeItem(item.product?._id, item.variant)}
-                              className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Remove
-                            </button>
-                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
 
-            {/* Order Summary */}
+            {/* Order Summary - UPDATED */}
             <div className="lg:col-span-1">
               <div className="sticky top-24">
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
@@ -354,12 +396,12 @@ export default function CartPage() {
                     <p className="text-white/90 text-sm">Review your order</p>
                   </div>
 
-                  {/* Price Breakdown */}
+                  {/* Price Breakdown - UPDATED */}
                   <div className="p-6 space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Subtotal</span>
                       <span className="text-lg font-semibold text-gray-900">
-                        ₹{subtotal.toLocaleString()}
+                        {formatPrice(subtotal)}
                       </span>
                     </div>
                     
@@ -367,7 +409,7 @@ export default function CartPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Discount</span>
                         <span className="text-lg font-semibold text-green-600">
-                          -₹{discount.toLocaleString()}
+                          -{formatPrice(discount)}
                         </span>
                       </div>
                     )}
@@ -375,7 +417,7 @@ export default function CartPage() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Delivery</span>
                       <span className={`text-lg font-semibold ${delivery === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                        {delivery === 0 ? 'FREE' : `₹${delivery.toLocaleString()}`}
+                        {delivery === 0 ? 'FREE' : formatPrice(delivery)}
                       </span>
                     </div>
 
@@ -384,12 +426,20 @@ export default function CartPage() {
                         <span className="text-xl font-bold text-gray-900">Total</span>
                         <div className="text-right">
                           <div className="text-3xl font-bold text-gray-900">
-                            ₹{total.toLocaleString()}
+                            {formatPrice(total)}
                           </div>
                           <div className="text-sm text-gray-500">Including all taxes</div>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                      
+                      {/* Exchange Rate Info */}
+                      {currency !== 'INR' && rates[currency] && (
+                        <p className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded-lg">
+                          Conversion rate: 1 INR = {rates[currency].toFixed(4)} {currency}
+                        </p>
+                      )}
+                      
+                      <p className="text-sm text-gray-600 flex items-center gap-2 mt-2">
                         <Shield className="w-4 h-4 text-[#b2965a]" />
                         Secure & Encrypted Payment
                       </p>
@@ -407,8 +457,6 @@ export default function CartPage() {
                       <ChevronRight className="w-5 h-5" />
                     </button>
                   </div>
-
-                 
                 </div>
 
                 {/* Continue Shopping */}
@@ -423,9 +471,6 @@ export default function CartPage() {
             </div>
           </div>
         )}
-
-        {/* Cart Tips */}
-       
       </div>
     </div>
   );

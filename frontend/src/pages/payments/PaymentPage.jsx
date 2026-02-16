@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../utils/axiosInstance";
+import { useCurrency } from '../../context/CurrencyContext';
 import { 
   MapPin, 
   Package, 
@@ -30,11 +31,14 @@ export default function TestCheckoutPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Get currency functions
+  const { format: formatPrice, currency, rates, loading: currencyLoading, convertAmount, getSymbol } = useCurrency();
+
   useEffect(() => {
     const fetchCart = async () => {
       try {
         const res = await api.get("/api/cart");
-        console.log("Cart data:", res.data.cart); // Debug log
+        console.log("Cart data:", res.data.cart);
         setCart(res.data.cart);
 
         const profileRes = await api.get("/api/profile");
@@ -48,204 +52,221 @@ export default function TestCheckoutPage() {
     fetchCart();
   }, []);
 
-const handlePayment = async () => {
-  if (!address) {
-    setShowAddressModal(true);
-    return;
-  }
-
-  if (!agreedToTerms) {
-    alert("Please agree to the terms and conditions");
-    return;
-  }
-
-  // Check if Razorpay is loaded
-  if (!window.Razorpay) {
-    alert("Payment gateway is not loaded. Please refresh the page and try again.");
-    return;
-  }
-
-  setIsProcessing(true);
-
-  try {
-    // Save address if needed
-    if (!address.trim()) {
-      alert("Please add a delivery address");
-      setIsProcessing(false);
+  const handlePayment = async () => {
+    if (!address) {
+      setShowAddressModal(true);
       return;
     }
 
-    // First, create order on our server
-    const orderRes = await api.post("/api/checkout/order");
-    const { order, key, payment_id } = orderRes.data;
-
-    // Validate key format
-    if (!key || !key.startsWith('rzp_live_')) {
-      console.error("Invalid Razorpay key. Expected live key (rzp_live_*), got:", key);
-      alert("Payment configuration error. Please contact support.");
-      setIsProcessing(false);
+    if (!agreedToTerms) {
+      alert("Please agree to the terms and conditions");
       return;
     }
 
-    console.log("Using Razorpay Key:", key.substring(0, 15) + "...");
-    console.log("Order Details:", { amount: order.amount, currency: order.currency });
+    // Check if Razorpay is loaded
+    if (!window.Razorpay) {
+      alert("Payment gateway is not loaded. Please refresh the page and try again.");
+      return;
+    }
 
-    // Fetch user data for prefill
-    let userData = {};
+    setIsProcessing(true);
+
     try {
-      const profileRes = await api.get("/api/profile");
-      userData = profileRes.data.user;
-    } catch (err) {
-      console.log("Could not fetch user profile");
-    }
+      // Save address if needed
+      if (!address.trim()) {
+        alert("Please add a delivery address");
+        setIsProcessing(false);
+        return;
+      }
 
-    // Razorpay options
-    const options = {
-      key, // This is the actual payment gateway key (live or test)
-      amount: order.amount,
-      currency: order.currency,
-      name: "KANJIQUE JEWELS",
-      description: "Premium Jewelry Purchase",
-      order_id: order.id,
-      handler: async function (response) {
-        try {
-          console.log("Payment successful, verifying signature...", {
-            orderId: response.razorpay_order_id,
-            paymentId: response.razorpay_payment_id
-          });
+      // Calculate total in selected currency for the order
+      const totalInSelectedCurrency = convertAmount(total);
+      
+      // First, create order on our server with currency info
+      const orderRes = await api.post("/api/checkout/order", {
+        currency: currency, // Send selected currency to backend
+        amount: total, // Original INR amount
+        convertedAmount: totalInSelectedCurrency // Converted amount
+      });
+      
+      const { order, key, payment_id } = orderRes.data;
 
-          // Verify payment with shipping address
-          const verifyRes = await api.post("/api/checkout/verify", {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            payment_id: payment_id,
-            shippingAddress: address,
-          });
+      // Validate key format
+      if (!key || !key.startsWith('rzp_live_')) {
+        console.error("Invalid Razorpay key. Expected live key (rzp_live_*), got:", key);
+        alert("Payment configuration error. Please contact support.");
+        setIsProcessing(false);
+        return;
+      }
 
-          if (verifyRes.data.success) {
-            console.log("Payment verified successfully");
-            // Redirect to success page with order details
-            window.location.href = `/checkout/success?order_id=${verifyRes.data.order.id}&payment_id=${verifyRes.data.payment.razorpay_payment_id}`;
-          } else {
+      console.log("Using Razorpay Key:", key.substring(0, 15) + "...");
+      console.log("Order Details:", { 
+        amount: order.amount, 
+        currency: order.currency,
+        selectedCurrency: currency 
+      });
+
+      // Fetch user data for prefill
+      let userData = {};
+      try {
+        const profileRes = await api.get("/api/profile");
+        userData = profileRes.data.user;
+      } catch (err) {
+        console.log("Could not fetch user profile");
+      }
+
+      // Razorpay options - UPDATED with dynamic currency
+      const options = {
+        key, // This is the actual payment gateway key (live or test)
+        amount: order.amount, // Amount is already in the correct currency from backend
+        currency: currency, // Dynamic currency from user selection
+        name: "KANJIQUE JEWELS",
+        description: `Premium Jewelry Purchase (${currency})`,
+        order_id: order.id,
+        handler: async function (response) {
+          try {
+            console.log("Payment successful, verifying signature...", {
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id
+            });
+
+            // Verify payment with shipping address and currency info
+            const verifyRes = await api.post("/api/checkout/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              payment_id: payment_id,
+              shippingAddress: address,
+              currency: currency, // Send selected currency
+              originalAmount: total // Original INR amount
+            });
+
+            if (verifyRes.data.success) {
+              console.log("Payment verified successfully");
+              // Redirect to success page with order details and currency
+              window.location.href = `/checkout/success?order_id=${verifyRes.data.order.id}&payment_id=${verifyRes.data.payment.razorpay_payment_id}&currency=${currency}`;
+            } else {
+              alert("Payment verification failed. Please contact support.");
+              setIsProcessing(false);
+            }
+          } catch (verifyErr) {
+            console.error("Verification error:", verifyErr);
             alert("Payment verification failed. Please contact support.");
             setIsProcessing(false);
           }
-        } catch (verifyErr) {
-          console.error("Verification error:", verifyErr);
-          alert("Payment verification failed. Please contact support.");
-          setIsProcessing(false);
-        }
-      },
-      prefill: {
-        name: userData.name || "",
-        email: userData.email || "",
-        contact: userData.phone || ""
-      },
-      theme: { 
-        color: "#b2965a",
-        backdrop_color: "#fef8e9"
-      },
-      modal: {
-        ondismiss: function() {
-          console.log("Payment modal dismissed");
-          setIsProcessing(false);
         },
-        escape: false, // Prevent closing with ESC
-      },
-      notes: {
-        address: address,
-        payment_id: payment_id
-      },
-      config: {
-        display: {
-          blocks: {
-            banks: {
-              name: 'Credit/Debit Cards',
-              instruments: [
-                {
-                  method: 'card',
-                  issuers: ['MASTERCARD', 'VISA', 'RUPAY']
-                }
-              ]
-            },
-            netbanking: {
-              name: 'Net Banking',
-              instruments: [
-                {
-                  method: 'netbanking',
-                  banks: ['HDFC', 'ICICI', 'SBI', 'AXIS', 'KOTAK', 'YESBANK']
-                }
-              ]
-            },
-            upi: {
-              name: "UPI",
-              instruments: [
-                {
-                  method: 'upi',
-                  flows: ['collect', 'intent', 'qr']
-                }
-              ]
-            },
-            wallet: {
-              name: "Wallets",
-              instruments: [
-                {
-                  method: 'wallet',
-                  wallets: ['paytm', 'phonepe', 'amazonpay', 'freecharge', 'mobikwik']
-                }
-              ]
-            }
+        prefill: {
+          name: userData.name || "",
+          email: userData.email || "",
+          contact: userData.phone || ""
+        },
+        theme: { 
+          color: "#b2965a",
+          backdrop_color: "#fef8e9"
+        },
+        modal: {
+          ondismiss: function() {
+            console.log("Payment modal dismissed");
+            setIsProcessing(false);
           },
-          sequence: ['block.banks', 'block.netbanking', 'block.upi', 'block.wallet'],
-          preferences: {
-            show_default_blocks: true
+          escape: false, // Prevent closing with ESC
+        },
+        notes: {
+          address: address,
+          payment_id: payment_id,
+          selected_currency: currency,
+          original_amount_inr: total
+        },
+        config: {
+          display: {
+            blocks: {
+              banks: {
+                name: 'Credit/Debit Cards',
+                instruments: [
+                  {
+                    method: 'card',
+                    issuers: ['MASTERCARD', 'VISA', 'RUPAY']
+                  }
+                ]
+              },
+              netbanking: {
+                name: 'Net Banking',
+                instruments: [
+                  {
+                    method: 'netbanking',
+                    banks: ['HDFC', 'ICICI', 'SBI', 'AXIS', 'KOTAK', 'YESBANK']
+                  }
+                ]
+              },
+              upi: {
+                name: "UPI",
+                instruments: [
+                  {
+                    method: 'upi',
+                    flows: ['collect', 'intent', 'qr']
+                  }
+                ]
+              },
+              wallet: {
+                name: "Wallets",
+                instruments: [
+                  {
+                    method: 'wallet',
+                    wallets: ['paytm', 'phonepe', 'amazonpay', 'freecharge', 'mobikwik']
+                  }
+                ]
+              }
+            },
+            sequence: ['block.banks', 'block.netbanking', 'block.upi', 'block.wallet'],
+            preferences: {
+              show_default_blocks: true
+            }
           }
-        }
-      },
-      retry: {
-        enabled: true,
-        max_count: 2
-      },
-      timeout: 900, // 15 minutes
-      remember_customer: true
-    };
+        },
+        retry: {
+          enabled: true,
+          max_count: 2
+        },
+        timeout: 900, // 15 minutes
+        remember_customer: true
+      };
 
-    console.log("Opening Razorpay with options:", {
-      key: options.key.substring(0, 15) + "...",
-      amount: options.amount,
-      orderId: options.order_id
-    });
+      console.log("Opening Razorpay with options:", {
+        key: options.key.substring(0, 15) + "...",
+        amount: options.amount,
+        currency: options.currency,
+        orderId: options.order_id
+      });
 
-    const rzp = new window.Razorpay(options);
-    
-    // Add event listeners for better UX
-    rzp.on('payment.failed', function (response) {
-      console.error('Payment failed:', response.error);
-      alert(`Payment failed: ${response.error.description}`);
+      const rzp = new window.Razorpay(options);
+      
+      // Add event listeners for better UX
+      rzp.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error);
+        alert(`Payment failed: ${response.error.description}`);
+        setIsProcessing(false);
+      });
+
+      rzp.on('payment.authorized', function (response) {
+        console.log('Payment authorized:', response.razorpay_payment_id);
+      });
+
+      rzp.open();
+    } catch (err) {
+      console.error("Payment error:", err);
+      
+      // User-friendly error messages
+      let errorMessage = "Failed to initiate payment";
+      if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.message.includes("Network Error")) {
+        errorMessage = "Network error. Please check your connection.";
+      }
+      
+      alert(errorMessage);
       setIsProcessing(false);
-    });
-
-    rzp.on('payment.authorized', function (response) {
-      console.log('Payment authorized:', response.razorpay_payment_id);
-    });
-
-    rzp.open();
-  } catch (err) {
-    console.error("Payment error:", err);
-    
-    // User-friendly error messages
-    let errorMessage = "Failed to initiate payment";
-    if (err.response?.data?.error) {
-      errorMessage = err.response.data.error;
-    } else if (err.message.includes("Network Error")) {
-      errorMessage = "Network error. Please check your connection.";
     }
-    
-    alert(errorMessage);
-    setIsProcessing(false);
-  }
-};
+  };
 
   const handleSaveAddress = async () => {
     if (!address.trim()) {
@@ -265,7 +286,7 @@ const handlePayment = async () => {
     }
   };
 
-  if (loading) return (
+  if (loading || currencyLoading) return (
     <div className="min-h-screen bg-gradient-to-b from-white to-[#fef8e9]/10 pt-32 pb-40 flex items-center justify-center">
       <div className="text-center">
         <div className="relative mx-auto mb-8">
@@ -300,7 +321,6 @@ const handlePayment = async () => {
 
   // Calculate subtotal from cart items
   const subtotal = cart.totalPrice || cart.items.reduce((sum, item) => {
-    // Use item.price from cart (already includes sale price)
     const price = item.price || 0;
     return sum + (price * item.quantity);
   }, 0);
@@ -314,6 +334,12 @@ const handlePayment = async () => {
   // Total includes subtotal + delivery - discount
   const total = subtotal + delivery - discount;
 
+  // Converted amounts for display
+  const subtotalConverted = convertAmount(subtotal);
+  const deliveryConverted = convertAmount(delivery);
+  const discountConverted = convertAmount(discount);
+  const totalConverted = convertAmount(total);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-[#fef8e9]/10 pt-32 pb-40 relative overflow-hidden">
       {/* Golden Blobs Background */}
@@ -321,7 +347,7 @@ const handlePayment = async () => {
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tr from-[#f4e6c3]/20 to-transparent rounded-full blur-3xl"></div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-        {/* Header */}
+        {/* Header - UPDATED */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -339,14 +365,15 @@ const handlePayment = async () => {
               </h1>
             </div>
             
-            <div className="flex items-center gap-2 bg-gradient-to-r from-white to-[#fef8e9] px-4 py-2 rounded-2xl border border-[#f4e6c3]">
-              <div className="w-8 h-8 bg-[#b2965a] text-white rounded-full flex items-center justify-center font-bold">
-                {cart.items.length}
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Items in Cart</div>
-                <div className="text-xs text-gray-600">Total value: ₹{subtotal.toLocaleString()}</div>
-              </div>
+            {/* Currency Display */}
+            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+              <span className="text-sm text-gray-600">Checkout in </span>
+              <span className="font-bold text-[#b2965a]">{currency}</span>
+              {currency !== 'INR' && rates[currency] && (
+                <span className="text-xs text-gray-500 ml-2">
+                  (1 INR = {rates[currency].toFixed(4)} {currency})
+                </span>
+              )}
             </div>
           </div>
           
@@ -446,7 +473,7 @@ const handlePayment = async () => {
               </div>
             </motion.div>
 
-            {/* Order Items Card */}
+            {/* Order Items Card - UPDATED */}
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -518,12 +545,20 @@ const handlePayment = async () => {
                               </div>
                             </div>
                             <div className="text-right">
+                              {/* Price with currency formatting */}
                               <div className="text-lg font-bold text-gray-900">
-                                ₹{(price * item.quantity).toLocaleString()}
+                                {formatPrice(price * item.quantity)}
                               </div>
                               <div className="text-sm text-gray-500">
-                                ₹{price.toLocaleString()} each
+                                {formatPrice(price)} each
                               </div>
+                              
+                              {/* Show original INR for non-INR currencies */}
+                              {currency !== 'INR' && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  ₹{(price * item.quantity).toLocaleString()}
+                                </div>
+                              )}
                             </div>
                           </div>
                           
@@ -550,7 +585,7 @@ const handlePayment = async () => {
             </motion.div>
           </div>
 
-          {/* Right Section - Order Summary & Payment */}
+          {/* Right Section - Order Summary & Payment - UPDATED */}
           <div className="lg:col-span-1">
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
@@ -568,29 +603,59 @@ const handlePayment = async () => {
                 <div className="p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-lg font-semibold text-gray-900">₹{subtotal.toLocaleString()}</span>
+                    <div className="text-right">
+                      <span className="text-lg font-semibold text-gray-900">{formatPrice(subtotal)}</span>
+                      {currency !== 'INR' && (
+                        <div className="text-xs text-gray-400">₹{subtotal.toLocaleString()}</div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Premium Discount</span>
-                    <span className="text-lg font-semibold text-green-600">-₹{discount.toLocaleString()}</span>
+                    <div className="text-right">
+                      <span className="text-lg font-semibold text-green-600">-{formatPrice(discount)}</span>
+                      {currency !== 'INR' && discount > 0 && (
+                        <div className="text-xs text-gray-400">-₹{discount.toLocaleString()}</div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Delivery</span>
-                    <span className={`text-lg font-semibold ${delivery === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                      {delivery === 0 ? 'FREE' : `₹${delivery.toLocaleString()}`}
-                    </span>
+                    <div className="text-right">
+                      <span className={`text-lg font-semibold ${delivery === 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        {delivery === 0 ? 'FREE' : formatPrice(delivery)}
+                      </span>
+                      {currency !== 'INR' && delivery > 0 && (
+                        <div className="text-xs text-gray-400">₹{delivery.toLocaleString()}</div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xl font-bold text-gray-900">Total Amount</span>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-gray-900">₹{total.toLocaleString()}</div>
+                        <div className="text-3xl font-bold text-gray-900">{formatPrice(total)}</div>
                         <div className="text-sm text-gray-500">Including all taxes</div>
+                        {currency !== 'INR' && (
+                          <div className="text-xs text-gray-400 mt-1">₹{total.toLocaleString()}</div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Exchange Rate Info */}
+                    {currency !== 'INR' && rates[currency] && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                        <p className="text-xs text-blue-700">
+                          Exchange Rate: 1 INR = {rates[currency].toFixed(4)} {currency}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          You'll be charged approximately {formatPrice(total)} in {currency}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -611,7 +676,7 @@ const handlePayment = async () => {
                 </div>
               </div>
 
-              {/* Payment CTA */}
+              {/* Payment CTA - UPDATED */}
               <div className="space-y-4">
                 <button
                   onClick={handlePayment}
@@ -632,7 +697,7 @@ const handlePayment = async () => {
                   ) : (
                     <>
                       <Lock className="w-5 h-5" />
-                      Pay Securely ₹{total.toLocaleString()}
+                      Pay {formatPrice(total)}
                       <ChevronRight className="w-5 h-5" />
                     </>
                   )}
@@ -646,11 +711,11 @@ const handlePayment = async () => {
                 </div>
               </div>
 
-              {/* Payment Methods */}
+              {/* Payment Methods - UPDATED */}
               <div className="bg-gradient-to-b from-white to-[#fef8e9] rounded-2xl border border-[#f4e6c3] p-6">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-[#b2965a]" />
-                  Accepted Payment Methods
+                  Accepted Payment Methods in {currency}
                 </h3>
                 <div className="grid grid-cols-4 gap-3">
                   <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
@@ -666,13 +731,18 @@ const handlePayment = async () => {
                     <div className="text-xs font-semibold text-gray-700">Wallets</div>
                   </div>
                 </div>
+                {currency !== 'INR' && (
+                  <p className="text-xs text-gray-500 mt-3 text-center">
+                    Your bank may charge foreign transaction fees
+                  </p>
+                )}
               </div>
             </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Address Modal */}
+      {/* Address Modal - UPDATED */}
       <AnimatePresence>
         {showAddressModal && (
           <motion.div

@@ -27,7 +27,8 @@ const MAIN_CATEGORIES = [
   { label: "Pendants", value: "Pendants" },
   { label: "Anklets", value: "Anklets" },
   { label: "Mang Tikka", value: "Mang Tikka" },
-  { label: "Nath", value: "Nath" }
+  { label: "Nath", value: "Nath" },
+  { label: "Crochet", value: "Crochet" }
 ];
 
 const SUB_CATEGORIES = {
@@ -98,7 +99,8 @@ const AVAILABLE_COLORS = [
   { name: "Sapphire Blue", hexCode: "#0F52BA" },
   { name: "Black", hexCode: "#000000" },
   { name: "Brown", hexCode: "#8B4513" },
-  { name: "Pink", hexCode: "#FFC0CB" }
+  { name: "Pink", hexCode: "#FFC0CB" },
+  { name: "Purple", hexCode: "#800080" }
 ];
 
 // Ring sizes in numbers

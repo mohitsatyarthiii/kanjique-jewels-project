@@ -15,10 +15,13 @@ import {
 import { motion } from "framer-motion";
 import api from "../../utils/axiosInstance";
 import { useAuth } from "../../context/AuthContext";
+import { useCurrency } from '../../context/CurrencyContext';
 
 export default function BuyNowCheckout() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { format: formatPrice, currency, rates, loading: currencyLoading, convertAmount } = useCurrency();
+  
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState("");
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -86,21 +89,26 @@ export default function BuyNowCheckout() {
         return;
       }
 
-      // Create a temporary cart or direct payment order
-      // Since this is a direct buy, we'll create the payment directly
+      // Calculate converted amounts for display
+      const subtotalConverted = convertAmount(orderData.subtotal);
+      const totalConverted = convertAmount(orderData.total);
+      const deliveryConverted = convertAmount(orderData.delivery);
+
+      // Create payment payload with currency info
       const paymentPayload = {
         products: [
           {
             productId: orderData.product._id,
             variantId: orderData.variant?._id || null,
             quantity: orderData.quantity,
-            price: orderData.price,
+            price: orderData.price, // Price in INR
           }
         ],
         address: address,
         subtotal: orderData.subtotal,
         delivery: orderData.delivery,
         total: orderData.total,
+        currency: currency, // Send selected currency to backend
       };
 
       console.log("Creating payment with payload:", paymentPayload);
@@ -112,17 +120,23 @@ export default function BuyNowCheckout() {
         throw new Error(orderRes.data.error || "Failed to create order");
       }
 
-      const { order, key, payment_id } = orderRes.data;
+      const { order, key, payment_id, convertedAmount, exchangeRate } = orderRes.data;
 
       console.log("Using Razorpay Key:", key.substring(0, 15) + "...");
-
-      // Razorpay options
-      const options = {
-        key,
+      console.log("Order details:", {
         amount: order.amount,
         currency: order.currency,
+        convertedAmount,
+        exchangeRate
+      });
+
+      // Razorpay options - UPDATED with dynamic currency
+      const options = {
+        key,
+        amount: order.amount, // Amount in selected currency (smallest unit)
+        currency: order.currency, // Selected currency from backend
         name: "KANJIQUE JEWELS",
-        description: "Premium Jewelry Purchase",
+        description: `Premium Jewelry Purchase (${currency})`,
         order_id: order.id,
         handler: async function (response) {
           try {
@@ -131,21 +145,23 @@ export default function BuyNowCheckout() {
               paymentId: response.razorpay_payment_id
             });
 
-            // Verify payment
+            // Verify payment with currency info
             const verifyRes = await api.post("/api/checkout/verify", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               payment_id: payment_id,
               shippingAddress: address,
+              currency: currency, // Send selected currency
+              originalAmount: orderData.total, // Original INR amount
             });
 
             if (verifyRes.data.success) {
               console.log("Payment verified successfully");
               // Clear session data
               sessionStorage.removeItem('buyNowData');
-              // Redirect to success page
-              window.location.href = `/checkout/success?order_id=${verifyRes.data.order.id}&payment_id=${verifyRes.data.payment.razorpay_payment_id}`;
+              // Redirect to success page with currency info
+              window.location.href = `/checkout/success?order_id=${verifyRes.data.order.id}&payment_id=${verifyRes.data.payment.razorpay_payment_id}&currency=${currency}`;
             } else {
               alert("Payment verification failed. Please contact support.");
               setIsProcessing(false);
@@ -174,7 +190,10 @@ export default function BuyNowCheckout() {
         },
         notes: {
           address: address,
-          payment_id: payment_id
+          payment_id: payment_id,
+          selected_currency: currency,
+          original_amount_inr: orderData.total,
+          exchange_rate: exchangeRate || 1
         },
         retry: {
           enabled: true,
@@ -187,6 +206,7 @@ export default function BuyNowCheckout() {
       console.log("Opening Razorpay with options:", {
         key: options.key.substring(0, 15) + "...",
         amount: options.amount,
+        currency: options.currency,
         orderId: options.order_id
       });
 
@@ -246,7 +266,7 @@ export default function BuyNowCheckout() {
     );
   }
 
-  if (!orderData) {
+  if (!orderData || currencyLoading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-32 pb-40 flex items-center justify-center">
         <div className="text-center">
@@ -258,20 +278,13 @@ export default function BuyNowCheckout() {
     );
   }
 
-  // Early return if no orderData
-  if (!orderData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center pt-30">
-        <div className="text-center">
-          <Loader2 className="w-16 h-16 text-[#b2965a] animate-spin mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Loading Order</h3>
-          <p className="text-gray-600">Please wait...</p>
-        </div>
-      </div>
-    );
-  }
-
   const { product, variant, quantity, price, subtotal, delivery, total } = orderData;
+
+  // Calculate converted amounts
+  const priceConverted = convertAmount(price);
+  const subtotalConverted = convertAmount(subtotal);
+  const deliveryConverted = convertAmount(delivery);
+  const totalConverted = convertAmount(total);
 
   // Get the correct image to display
   const getProductImage = () => {
@@ -301,20 +314,33 @@ export default function BuyNowCheckout() {
   return (
     <div className="min-h-screen bg-gray-50 pt-30 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+        {/* Header - UPDATED with Currency Display */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
+          className="mb-12 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
         >
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Order Summary</h1>
-          <p className="text-gray-600">Review and complete your purchase</p>
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Order Summary</h1>
+            <p className="text-gray-600">Review and complete your purchase</p>
+          </div>
+          
+          {/* Currency Display */}
+          <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+            <span className="text-sm text-gray-600">Checkout in </span>
+            <span className="font-bold text-[#b2965a]">{currency}</span>
+            {currency !== 'INR' && rates[currency] && (
+              <span className="text-xs text-gray-500 ml-2">
+                (1 INR = {rates[currency].toFixed(4)} {currency})
+              </span>
+            )}
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Section - Product Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Product Card */}
+            {/* Product Card - UPDATED */}
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -334,7 +360,7 @@ export default function BuyNowCheckout() {
                   />
                 </div>
 
-                {/* Product Info */}
+                {/* Product Info - UPDATED */}
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-gray-900 mb-1">{product.title}</h3>
                   {variant && (
@@ -346,8 +372,15 @@ export default function BuyNowCheckout() {
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
                     <span>Quantity: <span className="font-semibold">{quantity}</span></span>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">
-                    ₹{price.toLocaleString()}
+                  <div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {formatPrice(price)} {currency !== 'INR' && <span className="text-xs text-gray-500 ml-1">(₹{price.toLocaleString()})</span>}
+                    </div>
+                    {currency !== 'INR' && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        {formatPrice(price)} per item
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -391,7 +424,7 @@ export default function BuyNowCheckout() {
             </motion.div>
           </div>
 
-          {/* Right Section - Order Summary & Payment */}
+          {/* Right Section - Order Summary & Payment - UPDATED */}
           <div className="lg:col-span-1">
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
@@ -409,25 +442,50 @@ export default function BuyNowCheckout() {
                 <div className="p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-lg font-semibold text-gray-900">₹{subtotal.toLocaleString()}</span>
+                    <div className="text-right">
+                      <span className="text-lg font-semibold text-gray-900">{formatPrice(subtotal)}</span>
+                      {currency !== 'INR' && (
+                        <div className="text-xs text-gray-400">₹{subtotal.toLocaleString()}</div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Delivery</span>
-                    <span className={`text-lg font-semibold ${delivery === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                      {delivery === 0 ? 'FREE' : `₹${delivery.toLocaleString()}`}
-                    </span>
+                    <div className="text-right">
+                      <span className={`text-lg font-semibold ${delivery === 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        {delivery === 0 ? 'FREE' : formatPrice(delivery)}
+                      </span>
+                      {currency !== 'INR' && delivery > 0 && (
+                        <div className="text-xs text-gray-400">₹{delivery.toLocaleString()}</div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between items-center">
                       <span className="text-xl font-bold text-gray-900">Total Amount</span>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-gray-900">₹{total.toLocaleString()}</div>
+                        <div className="text-3xl font-bold text-gray-900">{formatPrice(total)}</div>
                         <div className="text-sm text-gray-500">Including all taxes</div>
+                        {currency !== 'INR' && (
+                          <div className="text-xs text-gray-400 mt-1">₹{total.toLocaleString()}</div>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Exchange Rate Info */}
+                  {currency !== 'INR' && rates[currency] && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-xs text-blue-700">
+                        Exchange Rate: 1 INR = {rates[currency].toFixed(4)} {currency}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        You'll be charged approximately {formatPrice(total)} in {currency}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Terms Checkbox */}
@@ -446,7 +504,7 @@ export default function BuyNowCheckout() {
                 </div>
               </div>
 
-              {/* Payment Button */}
+              {/* Payment Button - UPDATED */}
               <button
                 onClick={handlePayment}
                 disabled={isProcessing || !agreedToTerms || !address}
@@ -464,7 +522,7 @@ export default function BuyNowCheckout() {
                 ) : (
                   <>
                     <Lock className="w-5 h-5" />
-                    Pay Securely ₹{total.toLocaleString()}
+                    Pay {formatPrice(total)}
                     <ChevronRight className="w-5 h-5" />
                   </>
                 )}
@@ -475,8 +533,13 @@ export default function BuyNowCheckout() {
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-blue-900 text-sm">Secure Payment</p>
+                    <p className="font-semibold text-blue-900 text-sm">Secure Payment in {currency}</p>
                     <p className="text-xs text-blue-700 mt-1">Your payment is encrypted and secure</p>
+                    {currency !== 'INR' && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Your bank may charge foreign transaction fees
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -485,7 +548,7 @@ export default function BuyNowCheckout() {
         </div>
       </div>
 
-      {/* Address Modal */}
+      {/* Address Modal - UPDATED */}
       {showAddressModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <motion.div 

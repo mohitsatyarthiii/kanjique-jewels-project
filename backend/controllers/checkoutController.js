@@ -13,7 +13,7 @@ const razorpay = new Razorpay({
 
 // Validate environment
 if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-  console.error("Razorpay credentials missing!");
+  console.error("❌ Razorpay credentials missing!");
 }
 
 // Log Razorpay mode on startup
@@ -30,12 +30,13 @@ const generateReceiptId = () => {
 export const createOrder = async (req, res) => {
   try {
     const userId = req.user._id;
+    const { currency: targetCurrency = 'INR' } = req.body;
 
     // Populate cart with product details
     const cart = await Cart.findOne({ user: userId })
       .populate({
         path: "items.product",
-        select: "title mainImages basePrice baseSalePrice variants stock slug",
+        select: "title mainImages basePrice baseSalePrice variants stock slug category",
       });
 
     if (!cart || cart.items.length === 0) {
@@ -56,12 +57,12 @@ export const createOrder = async (req, res) => {
       if (!product) {
         return res.status(400).json({
           success: false,
-          error: `Product ${item.product} not found`,
+          error: `Product not found`,
         });
       }
 
       // Check stock
-      if (product.stock < item.quantity) {
+      if (product.totalStock < item.quantity) {
         return res.status(400).json({
           success: false,
           error: `${product.title} is out of stock`,
@@ -85,34 +86,47 @@ export const createOrder = async (req, res) => {
     const deliveryFee = amount > 5000 ? 0 : 99;
     const totalAmount = amount + deliveryFee; // in INR
 
-    // Handle optional target currency
-    const targetCurrency = req.body.currency || 'INR';
-
+    // Get exchange rates
+    const rates = await getRates('INR');
+    
     // Determine amount in smallest unit for Razorpay
     let amountInSmallestUnit;
-    let orderCurrency = 'INR';
+    let orderCurrency = targetCurrency;
+    let exchangeRate = 1;
+    let convertedAmount = totalAmount;
 
     if (targetCurrency && targetCurrency !== 'INR') {
-      try {
-        const rates = await getRates('INR');
-        const converted = convertAmount(totalAmount, rates, targetCurrency);
-        if (converted == null) throw new Error('Conversion failed');
-        // Assume two decimal currencies -> multiply by 100
-        amountInSmallestUnit = Math.round(converted * 100);
-        orderCurrency = targetCurrency;
-      } catch (err) {
-        console.warn('Currency conversion failed, falling back to INR', err.message || err);
-        amountInSmallestUnit = Math.round(totalAmount * 100);
+      const converted = convertAmount(totalAmount, rates, targetCurrency);
+      if (converted != null) {
+        convertedAmount = converted;
+        exchangeRate = rates[targetCurrency];
+        
+        // Handle different decimal places for currencies
+        if (targetCurrency === 'JPY') {
+          // JPY has 0 decimal places
+          amountInSmallestUnit = Math.round(convertedAmount);
+        } else {
+          // Most currencies have 2 decimal places
+          amountInSmallestUnit = Math.round(convertedAmount * 100);
+        }
+      } else {
+        // Fallback to INR
+        console.warn(`Conversion to ${targetCurrency} failed, falling back to INR`);
         orderCurrency = 'INR';
+        amountInSmallestUnit = Math.round(totalAmount * 100);
+        exchangeRate = 1;
       }
     } else {
+      orderCurrency = 'INR';
       amountInSmallestUnit = Math.round(totalAmount * 100);
     }
 
-    if (amountInSmallestUnit < 100) { // Minimum unit (₹1 or equivalent)
+    // Validate minimum amount
+    const minAmountInTarget = orderCurrency === 'INR' ? 100 : 1; // Minimum 1 unit in target currency
+    if (amountInSmallestUnit < minAmountInTarget) {
       return res.status(400).json({
         success: false,
-        error: "Minimum order amount is ₹1",
+        error: `Minimum order amount is ${orderCurrency === 'INR' ? '₹1' : '1 ' + orderCurrency}`,
       });
     }
 
@@ -125,8 +139,16 @@ export const createOrder = async (req, res) => {
       notes: {
         userId: userId.toString(),
         cartId: cart._id.toString(),
+        originalAmountINR: totalAmount.toString(),
+        exchangeRate: exchangeRate.toString(),
       },
     };
+
+    console.log("Creating Razorpay order with options:", {
+      amount: options.amount,
+      currency: options.currency,
+      receipt: options.receipt
+    });
 
     // Create Razorpay order
     const razorpayOrder = await razorpay.orders.create(options);
@@ -135,8 +157,11 @@ export const createOrder = async (req, res) => {
     const payment = new Payment({
       user: userId,
       razorpay_order_id: razorpayOrder.id,
-      amount: amountInPaise,
-      currency: "INR",
+      amount: amountInSmallestUnit,
+      currency: orderCurrency,
+      originalCurrency: 'INR',
+      originalAmount: totalAmount,
+      exchangeRate: exchangeRate,
       status: "created",
       items: validatedItems,
       metadata: {
@@ -146,6 +171,7 @@ export const createOrder = async (req, res) => {
         deliveryFee: deliveryFee,
         subtotalAmount: amount,
         totalAmount: totalAmount,
+        type: "cart"
       },
     });
 
@@ -157,18 +183,22 @@ export const createOrder = async (req, res) => {
       payment_id: payment._id,
       key: process.env.RAZORPAY_KEY_ID,
       amount: totalAmount,
+      convertedAmount: convertedAmount,
+      currency: orderCurrency,
       delivery: deliveryFee,
+      exchangeRate: exchangeRate
     });
 
     console.log("✅ Order created successfully", {
       orderId: razorpayOrder.id,
-      amount: amount,
-      currency: "INR",
-      keyType: process.env.RAZORPAY_KEY_ID?.substring(0, 10) + "..."
+      amountINR: totalAmount,
+      amountConverted: convertedAmount,
+      currency: orderCurrency,
+      exchangeRate: exchangeRate
     });
 
   } catch (err) {
-    console.error("Create order error:", err);
+    console.error("❌ Create order error:", err);
     
     // Handle specific Razorpay errors
     if (err.error && err.error.description) {
@@ -186,7 +216,7 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// Verify payment (client-side verification)
+// Verify payment
 export const verifyPayment = async (req, res) => {
   try {
     const {
@@ -194,6 +224,9 @@ export const verifyPayment = async (req, res) => {
       razorpay_payment_id,
       razorpay_signature,
       payment_id,
+      shippingAddress,
+      currency,
+      originalAmount
     } = req.body;
 
     // Validate required fields
@@ -201,6 +234,13 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: "Missing payment details",
+      });
+    }
+
+    if (!shippingAddress) {
+      return res.status(400).json({
+        success: false,
+        error: "Shipping address is required",
       });
     }
 
@@ -213,7 +253,7 @@ export const verifyPayment = async (req, res) => {
     if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({
         success: false,
-        error: "Payment verification failed",
+        error: "Payment verification failed - Invalid signature",
       });
     }
 
@@ -242,11 +282,15 @@ export const verifyPayment = async (req, res) => {
       user: payment.user,
       payment: payment._id,
       items: payment.items,
-      totalAmount: payment.amount / 100,
-      currency: payment.currency,
+      subtotalAmount: payment.metadata.subtotalAmount,
+      deliveryFee: payment.metadata.deliveryFee,
+      discountAmount: payment.metadata.totalSavings || 0,
+      totalAmount: payment.metadata.totalAmount,
+      displayCurrency: payment.currency,
+      displayAmount: payment.amount / (payment.currency === 'JPY' ? 1 : 100),
       status: "confirmed",
-      shippingAddress: req.body.shippingAddress || "",
-      billingAddress: req.body.billingAddress || "",
+      shippingAddress: shippingAddress,
+      billingAddress: shippingAddress,
       notes: req.body.notes || "",
     });
 
@@ -256,7 +300,7 @@ export const verifyPayment = async (req, res) => {
     for (const item of payment.items) {
       await Product.findByIdAndUpdate(
         item.product,
-        { $inc: { stock: -item.quantity } }
+        { $inc: { totalStock: -item.quantity } }
       );
     }
 
@@ -271,9 +315,6 @@ export const verifyPayment = async (req, res) => {
       }
     );
 
-    // Send order confirmation email (you'll need to implement this)
-    // await sendOrderConfirmationEmail(payment.user, order);
-
     res.json({
       success: true,
       message: "Payment verified successfully",
@@ -281,6 +322,8 @@ export const verifyPayment = async (req, res) => {
         id: order._id,
         orderNumber: order.orderNumber,
         totalAmount: order.totalAmount,
+        displayAmount: order.displayAmount,
+        displayCurrency: order.displayCurrency,
         status: order.status,
       },
       payment: {
@@ -291,10 +334,179 @@ export const verifyPayment = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Verify payment error:", err);
+    console.error("❌ Verify payment error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to verify payment",
+    });
+  }
+};
+
+// Buy Now - Direct checkout
+export const buyNow = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { products, address, subtotal, delivery, total, currency: targetCurrency = 'INR' } = req.body;
+
+    if (!products || products.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No products provided",
+      });
+    }
+
+    if (!address) {
+      return res.status(400).json({
+        success: false,
+        error: "Shipping address is required",
+      });
+    }
+
+    // Validate and fetch product details
+    const validatedItems = [];
+    let calculatedAmount = 0;
+
+    for (const item of products) {
+      const product = await Product.findById(item.productId).populate('variants');
+
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          error: `Product not found`,
+        });
+      }
+
+      // Check stock
+      if (product.totalStock < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          error: `${product.title} is out of stock`,
+        });
+      }
+
+      calculatedAmount += item.price * item.quantity;
+
+      validatedItems.push({
+        product: product._id,
+        quantity: item.quantity,
+        price: item.price,
+        variant: item.variantId || null,
+        variantDetails: item.variantDetails || null,
+      });
+    }
+
+    // Calculate delivery fee
+    const deliveryFee = calculatedAmount > 5000 ? 0 : 99;
+    const totalAmount = calculatedAmount + deliveryFee;
+
+    // Get exchange rates
+    const rates = await getRates('INR');
+    
+    // Determine amount in smallest unit for Razorpay
+    let amountInSmallestUnit;
+    let orderCurrency = targetCurrency;
+    let exchangeRate = 1;
+    let convertedAmount = totalAmount;
+
+    if (targetCurrency && targetCurrency !== 'INR') {
+      const converted = convertAmount(totalAmount, rates, targetCurrency);
+      if (converted != null) {
+        convertedAmount = converted;
+        exchangeRate = rates[targetCurrency];
+        
+        if (targetCurrency === 'JPY') {
+          amountInSmallestUnit = Math.round(convertedAmount);
+        } else {
+          amountInSmallestUnit = Math.round(convertedAmount * 100);
+        }
+      } else {
+        orderCurrency = 'INR';
+        amountInSmallestUnit = Math.round(totalAmount * 100);
+        exchangeRate = 1;
+      }
+    } else {
+      orderCurrency = 'INR';
+      amountInSmallestUnit = Math.round(totalAmount * 100);
+    }
+
+    if (amountInSmallestUnit < (orderCurrency === 'INR' ? 100 : 1)) {
+      return res.status(400).json({
+        success: false,
+        error: `Minimum order amount is ${orderCurrency === 'INR' ? '₹1' : '1 ' + orderCurrency}`,
+      });
+    }
+
+    // Create Razorpay order
+    const options = {
+      amount: amountInSmallestUnit,
+      currency: orderCurrency,
+      receipt: generateReceiptId(),
+      payment_capture: 1,
+      notes: {
+        userId: userId.toString(),
+        type: "buyNow",
+        originalAmountINR: totalAmount.toString(),
+        exchangeRate: exchangeRate.toString(),
+      },
+    };
+
+    const razorpayOrder = await razorpay.orders.create(options);
+
+    // Save payment record
+    const payment = new Payment({
+      user: userId,
+      razorpay_order_id: razorpayOrder.id,
+      amount: amountInSmallestUnit,
+      currency: orderCurrency,
+      originalCurrency: 'INR',
+      originalAmount: totalAmount,
+      exchangeRate: exchangeRate,
+      status: "created",
+      items: validatedItems,
+      metadata: {
+        deliveryFee: deliveryFee,
+        subtotalAmount: calculatedAmount,
+        totalAmount: totalAmount,
+        shippingAddress: address,
+        type: "buyNow",
+      },
+    });
+
+    await payment.save();
+
+    res.json({
+      success: true,
+      order: razorpayOrder,
+      payment_id: payment._id,
+      key: process.env.RAZORPAY_KEY_ID,
+      amount: totalAmount,
+      convertedAmount: convertedAmount,
+      currency: orderCurrency,
+      delivery: deliveryFee,
+      exchangeRate: exchangeRate,
+    });
+
+    console.log("✅ Buy Now order created successfully", {
+      orderId: razorpayOrder.id,
+      amountINR: totalAmount,
+      amountConverted: convertedAmount,
+      currency: orderCurrency
+    });
+
+  } catch (err) {
+    console.error("❌ Buy now error:", err);
+
+    if (err.error && err.error.description) {
+      return res.status(400).json({
+        success: false,
+        error: err.error.description,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to create order. Please try again.",
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 };
@@ -494,6 +706,7 @@ export const getOrderDetails = async (req, res) => {
 };
 
 // Get user orders
+// Get user orders
 export const getUserOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
@@ -518,6 +731,7 @@ export const getUserOrders = async (req, res) => {
 export const cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
+    const { reason } = req.body;
 
     const order = await Order.findOne({
       _id: orderId,
@@ -542,18 +756,21 @@ export const cancelOrder = async (req, res) => {
     // Update order status
     order.status = "cancelled";
     order.cancelledAt = new Date();
+    order.cancellationReason = reason || "Cancelled by customer";
     await order.save();
-
-    // Refund process (initiate refund via Razorpay if needed)
-    // You'll need to implement refund logic based on your policy
 
     // Restore product stock
     for (const item of order.items) {
       await Product.findByIdAndUpdate(
         item.product,
-        { $inc: { stock: item.quantity } }
+        { $inc: { totalStock: item.quantity } }
       );
     }
+
+    // Update payment status
+    await Payment.findByIdAndUpdate(order.payment, {
+      status: "refunded"
+    });
 
     res.json({
       success: true,
@@ -569,147 +786,3 @@ export const cancelOrder = async (req, res) => {
   }
 };
 
-// Buy Now - Direct checkout without cart
-export const buyNow = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { products, address, subtotal, delivery, total } = req.body;
-
-    if (!products || products.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "No products provided",
-      });
-    }
-
-    // Validate and fetch product details
-    const validatedItems = [];
-    let calculatedAmount = 0;
-
-    for (const item of products) {
-      const product = await Product.findById(item.productId).populate('variants');
-
-      if (!product) {
-        return res.status(400).json({
-          success: false,
-          error: `Product not found`,
-        });
-      }
-
-      // Check stock
-      if (product.stock < item.quantity) {
-        return res.status(400).json({
-          success: false,
-          error: `${product.title} is out of stock`,
-        });
-      }
-
-      calculatedAmount += item.price * item.quantity;
-
-      validatedItems.push({
-        product: product._id,
-        quantity: item.quantity,
-        price: item.price,
-        variant: item.variantId || null,
-        variantDetails: null,
-      });
-    }
-
-    // Calculate delivery fee
-    const deliveryFee = calculatedAmount > 5000 ? 0 : 99;
-    const totalAmount = calculatedAmount + deliveryFee;
-
-    // Handle optional currency conversion (client may send target currency)
-    const targetCurrency = req.body.currency || 'INR';
-    let amountInSmallestUnit;
-    let orderCurrency = 'INR';
-
-    if (targetCurrency && targetCurrency !== 'INR') {
-      try {
-        const rates = await getRates('INR');
-        const converted = convertAmount(totalAmount, rates, targetCurrency);
-        if (converted == null) throw new Error('Conversion failed');
-        amountInSmallestUnit = Math.round(converted * 100);
-        orderCurrency = targetCurrency;
-      } catch (err) {
-        console.warn('Currency conversion failed for buyNow, falling back to INR', err.message || err);
-        amountInSmallestUnit = Math.round(totalAmount * 100);
-        orderCurrency = 'INR';
-      }
-    } else {
-      amountInSmallestUnit = Math.round(totalAmount * 100);
-    }
-
-    if (amountInSmallestUnit < 100) {
-      return res.status(400).json({
-        success: false,
-        error: "Minimum order amount is ₹1",
-      });
-    }
-
-    // Create Razorpay order
-    const options = {
-      amount: amountInSmallestUnit,
-      currency: orderCurrency,
-      receipt: generateReceiptId(),
-      payment_capture: 1,
-      notes: {
-        userId: userId.toString(),
-        type: "buyNow",
-      },
-    };
-
-    const razorpayOrder = await razorpay.orders.create(options);
-
-    // Save payment record
-    const payment = new Payment({
-      user: userId,
-      razorpay_order_id: razorpayOrder.id,
-      amount: amountInSmallestUnit,
-      currency: orderCurrency,
-      status: "created",
-      items: validatedItems,
-      metadata: {
-        deliveryFee: deliveryFee,
-        subtotalAmount: calculatedAmount,
-        totalAmount: totalAmount,
-        shippingAddress: address,
-        type: "buyNow",
-      },
-    });
-
-    await payment.save();
-
-    res.json({
-      success: true,
-      order: razorpayOrder,
-      payment_id: payment._id,
-      key: process.env.RAZORPAY_KEY_ID,
-      amount: totalAmount,
-      delivery: deliveryFee,
-    });
-
-    console.log("✅ Buy Now order created successfully", {
-      orderId: razorpayOrder.id,
-      amount: totalAmount,
-      currency: orderCurrency,
-      keyType: process.env.RAZORPAY_KEY_ID?.substring(0, 10) + "..."
-    });
-
-  } catch (err) {
-    console.error("Buy now error:", err);
-
-    if (err.error && err.error.description) {
-      return res.status(400).json({
-        success: false,
-        error: err.error.description,
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: "Failed to create order. Please try again.",
-      details: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
-  }
-};

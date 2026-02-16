@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../utils/axiosInstance";
+import { useCurrency } from '../../context/CurrencyContext';
 import { 
   FiFilter, 
   FiStar, 
@@ -22,11 +23,13 @@ import {
   FiChevronRight,
   FiPackage,
   FiInfo,
-  FiCheck
+  FiCheck,
+  FiSliders,
+  FiChevronDown
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Fixed categories for filter sidebar (icons removed)
+// Fixed categories for filter sidebar
 const FIXED_CATEGORIES = [
   { title: "Rings", value: "Rings" },
   { title: "Bangles", value: "Bangles" },
@@ -76,6 +79,7 @@ export default function CategoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [availableFilters, setAvailableFilters] = useState({
     categories: [],
     subCategories: [],
@@ -85,6 +89,34 @@ export default function CategoryPage() {
     priceRange: { minPrice: 0, maxPrice: 1000000 }
   });
   const itemsPerPage = 12;
+
+  // Get currency functions
+  const { format: formatPrice, currency, rates, loading: currencyLoading } = useCurrency();
+
+  // Close mobile filters when screen size increases
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setMobileFiltersOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Prevent body scroll when mobile filters are open
+  useEffect(() => {
+    if (mobileFiltersOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileFiltersOpen]);
 
   // Fetch available filters
   useEffect(() => {
@@ -177,11 +209,6 @@ export default function CategoryPage() {
         console.log("Products API Response:", res.data);
 
         if (res.data.success) {
-          // Debug: Check the structure of products data
-          console.log("First product data:", res.data.products?.[0]);
-          console.log("First product inStock value:", res.data.products?.[0]?.inStock);
-          console.log("First product variants:", res.data.products?.[0]?.variants);
-          
           setProducts(res.data.products || []);
           if (res.data.pagination) {
             setTotalPages(res.data.pagination.totalPages || 1);
@@ -211,6 +238,10 @@ export default function CategoryPage() {
     } else {
       navigate(`/category/${cat}`);
     }
+    // Close mobile filters after category change
+    if (window.innerWidth < 1024) {
+      setMobileFiltersOpen(false);
+    }
   };
 
   // Handle price change
@@ -233,6 +264,10 @@ export default function CategoryPage() {
   const handleSortChange = (sort) => {
     setCurrentPage(1);
     setSortBy(sort);
+    // Close mobile filters after applying sort on mobile
+    if (window.innerWidth < 1024) {
+      setMobileFiltersOpen(false);
+    }
   };
 
   // Clear all filters
@@ -246,6 +281,11 @@ export default function CategoryPage() {
     setSortBy("newest");
   };
 
+  // Apply filters and close mobile drawer
+  const applyFilters = () => {
+    setMobileFiltersOpen(false);
+  };
+
   // Get product image
   const getProductImage = (product) => {
     if (product.mainImages && product.mainImages.length > 0 && product.mainImages[0].url) {
@@ -257,17 +297,8 @@ export default function CategoryPage() {
 
   // Get stock status - Improved logic based on actual API response
   const getStockStatus = (product) => {
-    console.log("Checking stock for product:", product._id, product.title);
-    console.log("Product data:", {
-      inStock: product.inStock,
-      totalStock: product.totalStock,
-      variants: product.variants,
-      stockQuantity: product.stockQuantity
-    });
-    
     // First, check if product has direct inStock field
     if (typeof product.inStock !== 'undefined') {
-      console.log("Using direct inStock field:", product.inStock);
       return {
         inStock: product.inStock,
         quantity: product.totalStock || product.stockQuantity || 0,
@@ -286,8 +317,6 @@ export default function CategoryPage() {
       // Check if any variant has stock
       const hasStock = product.variants.some(variant => (variant.stockQuantity || 0) > 0);
       
-      console.log("Using variant stock calculation:", { hasStock, totalVariantStock });
-      
       return {
         inStock: hasStock,
         quantity: totalVariantStock,
@@ -302,7 +331,6 @@ export default function CategoryPage() {
     }
     
     // If no inStock field and no variants, assume in stock for display
-    console.log("No stock data found, assuming in stock");
     return {
       inStock: true,
       quantity: 100, // Default value
@@ -310,7 +338,7 @@ export default function CategoryPage() {
     };
   };
 
-  // Get price display
+  // Get price display - UPDATED with currency formatting
   const getPriceDisplay = (product) => {
     const basePrice = product.basePrice || product.displayPrice || 0;
     const salePrice = product.baseSalePrice || (product.displayPrice !== basePrice ? product.displayPrice : null);
@@ -320,8 +348,12 @@ export default function CategoryPage() {
       return (
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-gray-900">₹{salePrice.toLocaleString()}</span>
-            <span className="text-sm text-gray-500 line-through">₹{basePrice.toLocaleString()}</span>
+            <span className="text-lg font-bold text-gray-900">
+              {formatPrice(salePrice)}
+            </span>
+            <span className="text-sm text-gray-500 line-through">
+              {formatPrice(basePrice)}
+            </span>
           </div>
           <span className="text-xs text-red-600 font-semibold mt-1">
             Save {discountPercent}%
@@ -329,7 +361,7 @@ export default function CategoryPage() {
         </div>
       );
     }
-    return <span className="text-lg font-bold text-gray-900">₹{basePrice.toLocaleString()}</span>;
+    return <span className="text-lg font-bold text-gray-900">{formatPrice(basePrice)}</span>;
   };
 
   // Handle product click - navigate to product page by ID
@@ -343,13 +375,14 @@ export default function CategoryPage() {
     e.stopPropagation();
     // Add to cart logic here
     console.log("Add to cart:", product._id);
-    // You can implement cart functionality here
   };
 
-  // Modern Product Card Component (Grid View)
+  // Modern Product Card Component (Grid View) - UPDATED
   const ProductCard = ({ product, index }) => {
     const [isHovered, setIsHovered] = useState(false);
     const stockStatus = getStockStatus(product);
+    const currentPrice = product.baseSalePrice || product.basePrice || 0;
+    const originalPrice = product.baseSalePrice ? product.basePrice : null;
 
     return (
       <motion.div
@@ -406,6 +439,13 @@ export default function CategoryPage() {
             >
               <FiHeart className="w-4 h-4" />
             </button>
+
+            {/* Currency Indicator */}
+            {currency !== 'INR' && (
+              <div className="absolute top-3 right-12 z-10 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg">
+                {currency}
+              </div>
+            )}
 
             {/* Product Image */}
             <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
@@ -465,12 +505,12 @@ export default function CategoryPage() {
                 {product.shortDescription || "Premium quality jewelry piece."}
               </p>
 
-              {/* Price */}
+              {/* Price - UPDATED */}
               <div className="mb-4">
                 {getPriceDisplay(product)}
               </div>
 
-              {/* Stock Status - Updated with Product Page Logic */}
+              {/* Stock Status */}
               <div className="flex items-center justify-between mb-4">
                 <div className={`text-xs px-2 py-1 rounded-full ${
                   stockStatus.inStock 
@@ -522,9 +562,11 @@ export default function CategoryPage() {
     );
   };
 
-  // List View Product Component
+  // List View Product Component - UPDATED
   const ProductListCard = ({ product, index }) => {
     const stockStatus = getStockStatus(product);
+    const currentPrice = product.baseSalePrice || product.basePrice || 0;
+    const originalPrice = product.baseSalePrice ? product.basePrice : null;
 
     return (
       <motion.div
@@ -574,6 +616,13 @@ export default function CategoryPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Currency Indicator */}
+                {currency !== 'INR' && (
+                  <div className="absolute top-3 right-3 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg">
+                    {currency}
+                  </div>
+                )}
               </div>
 
               {/* Info Section */}
@@ -597,7 +646,7 @@ export default function CategoryPage() {
                     </p>
                   </div>
 
-                  {/* Details */}
+                  {/* Details - UPDATED */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div>
                       <div className="text-xs text-gray-500 mb-1">Price</div>
@@ -665,7 +714,7 @@ export default function CategoryPage() {
   };
 
   // Loading state
-  if (loading) return (
+  if (loading || currencyLoading) return (
     <div className="min-h-screen pt-32 pb-40 flex items-center justify-center">
       <div className="text-center">
         <div className="relative inline-block">
@@ -696,27 +745,231 @@ export default function CategoryPage() {
     </div>
   );
 
+  const totalFilterCount = selectedColors.length;
+
   return (
     <div className="min-h-screen bg-gray-50 pt-30 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            {category ? `${category} Collection` : "All Products"}
-          </h1>
-          <p className="text-gray-600">
-            {category 
-              ? `Browse our premium collection of ${category.toLowerCase()} jewelry` 
-              : 'Discover our complete range of premium jewelry'}
-            <span className="block text-sm text-gray-500 mt-1">
-              {totalProducts} products available
-            </span>
-          </p>
+        {/* Header - UPDATED */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+              {category ? `${category} Collection` : "All Products"}
+            </h1>
+            <p className="text-gray-600">
+              {category 
+                ? `Browse our premium collection of ${category.toLowerCase()} jewelry` 
+                : 'Discover our complete range of premium jewelry'}
+              <span className="block text-sm text-gray-500 mt-1">
+                {totalProducts} products available
+              </span>
+            </p>
+          </div>
+          
+          {/* Current Currency Display */}
+          <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+            <span className="text-sm text-gray-600">Showing prices in </span>
+            <span className="font-bold text-[#b2965a]">{currency}</span>
+            {currency !== 'INR' && rates[currency] && (
+              <span className="text-xs text-gray-500 ml-2">
+                (1 INR = {rates[currency]} {currency})
+              </span>
+            )}
+          </div>
         </div>
 
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setMobileFiltersOpen(true)}
+            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between shadow-sm"
+          >
+            <span className="flex items-center gap-2">
+              <FiSliders className="w-5 h-5 text-[#b2965a]" />
+              <span className="font-semibold text-gray-700">Filters & Sort</span>
+            </span>
+            <div className="flex items-center gap-2">
+              {totalFilterCount > 0 && (
+                <span className="bg-[#b2965a] text-white text-xs px-2 py-1 rounded-full">
+                  {totalFilterCount}
+                </span>
+              )}
+              <FiChevronDown className="w-5 h-5 text-gray-400" />
+            </div>
+          </button>
+        </div>
+
+        {/* Mobile Filters Drawer */}
+        <AnimatePresence>
+          {mobileFiltersOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setMobileFiltersOpen(false)}
+                className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+              />
+              
+              {/* Drawer */}
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'tween', duration: 0.3 }}
+                className="fixed top-0 right-0 h-full w-full max-w-sm bg-white z-50 lg:hidden overflow-y-auto"
+              >
+                <div className="p-6">
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">Filters & Sort</h3>
+                    <button
+                      onClick={() => setMobileFiltersOpen(false)}
+                      className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                    >
+                      <FiX className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Mobile Filters Content */}
+                  <div className="space-y-8">
+                    {/* Sort Options */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Sort By</h4>
+                      <div className="space-y-2">
+                        {SORT_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => handleSortChange(option.value)}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-3 ${
+                              sortBy === option.value
+                                ? 'bg-[#b2965a] text-white shadow-md'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {option.icon}
+                            <span>{option.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Categories */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Categories</h4>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => handleCategoryChange('all')}
+                          className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            !category
+                              ? 'bg-[#b2965a] text-white shadow-md'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          All Products
+                        </button>
+                        {FIXED_CATEGORIES.map((cat) => (
+                          <button
+                            key={cat.value}
+                            onClick={() => handleCategoryChange(cat.value)}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                              category === cat.value
+                                ? 'bg-[#b2965a] text-white shadow-md'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {cat.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Colors */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Colors</h4>
+                      <div className="flex flex-wrap gap-3">
+                        {COLOR_OPTIONS.map((color) => (
+                          <button
+                            key={color.name}
+                            onClick={() => handleColorSelect(color.name)}
+                            className={`relative w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                              selectedColors.includes(color.name)
+                                ? 'border-[#b2965a] scale-110 shadow-lg'
+                                : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                            style={{ backgroundColor: color.hexCode }}
+                            title={color.name}
+                          >
+                            {selectedColors.includes(color.name) && (
+                              <FiCheck className="absolute inset-0 m-auto w-5 h-5 text-white stroke-[3]" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Price Range */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-gray-700">
+                            {formatPrice(priceFilter[0])}
+                          </span>
+                          <span className="font-medium text-gray-700">
+                            {formatPrice(priceFilter[1])}
+                          </span>
+                        </div>
+                        <div className="relative pt-1">
+                          <input
+                            type="range"
+                            min={availableFilters.priceRange.minPrice || 0}
+                            max={availableFilters.priceRange.maxPrice || 1000000}
+                            value={priceFilter[0]}
+                            onChange={(e) => handlePriceChange(Number(e.target.value), priceFilter[1])}
+                            className="w-full mb-2"
+                          />
+                          <input
+                            type="range"
+                            min={availableFilters.priceRange.minPrice || 0}
+                            max={availableFilters.priceRange.maxPrice || 1000000}
+                            value={priceFilter[1]}
+                            onChange={(e) => handlePriceChange(priceFilter[0], Number(e.target.value))}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Apply & Clear Buttons */}
+                    <div className="flex gap-4 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => {
+                          clearFilters();
+                          setMobileFiltersOpen(false);
+                        }}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+                      >
+                        Clear All
+                      </button>
+                      <button
+                        onClick={applyFilters}
+                        className="flex-1 bg-[#b2965a] text-white px-4 py-3 rounded-lg font-semibold hover:bg-[#9c8146] transition-colors"
+                      >
+                        Apply Filters
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters - Professional UI */}
-          <div className="lg:w-64 flex-shrink-0">
+          {/* Desktop Sidebar Filters */}
+          <div className="hidden lg:block lg:w-64 flex-shrink-0">
             <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 sticky top-24">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-bold text-gray-900 text-lg">Filters</h3>
@@ -728,7 +981,7 @@ export default function CategoryPage() {
                 </button>
               </div>
 
-              {/* Categories - Icons removed */}
+              {/* Categories */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4 flex items-center justify-between">
                   <span>Categories</span>
@@ -764,9 +1017,7 @@ export default function CategoryPage() {
                 </div>
               </div>
 
-              
-
-              {/* Colors - Professional Color Selector */}
+              {/* Colors */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4">Colors</h4>
                 <div className="flex flex-wrap gap-3">
@@ -790,7 +1041,47 @@ export default function CategoryPage() {
                 </div>
               </div>
 
-              {/* Active Filters - Professional Tags */}
+              {/* Price Range */}
+              <div className="mb-8">
+                <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700">{formatPrice(priceFilter[0])}</span>
+                    <span className="font-medium text-gray-700">{formatPrice(priceFilter[1])}</span>
+                  </div>
+                  <div className="relative pt-1">
+                    <div className="h-2 bg-gray-200 rounded-full">
+                      <div 
+                        className="absolute h-2 bg-[#b2965a] rounded-full"
+                        style={{
+                          left: `${((priceFilter[0] - (availableFilters.priceRange.minPrice || 0)) / 
+                                 ((availableFilters.priceRange.maxPrice || 1000000) - (availableFilters.priceRange.minPrice || 0))) * 100}%`,
+                          right: `${100 - ((priceFilter[1] - (availableFilters.priceRange.minPrice || 0)) / 
+                                  ((availableFilters.priceRange.maxPrice || 1000000) - (availableFilters.priceRange.minPrice || 0))) * 100}%`
+                        }}
+                      ></div>
+                    </div>
+                    <input
+                      type="range"
+                      min={availableFilters.priceRange.minPrice || 0}
+                      max={availableFilters.priceRange.maxPrice || 1000000}
+                      value={priceFilter[0]}
+                      onChange={(e) => handlePriceChange(Number(e.target.value), priceFilter[1])}
+                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-lg"
+                    />
+                    <input
+                      type="range"
+                      min={availableFilters.priceRange.minPrice || 0}
+                      max={availableFilters.priceRange.maxPrice || 1000000}
+                      value={priceFilter[1]}
+                      onChange={(e) => handlePriceChange(priceFilter[0], Number(e.target.value))}
+                      className="absolute w-full h-2 bg-transparent pointer-events-none appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#b2965a] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-lg"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters - UPDATED */}
               {(priceFilter[0] > (availableFilters.priceRange.minPrice || 0) || 
                 priceFilter[1] < (availableFilters.priceRange.maxPrice || 1000000) || 
                 selectedColors.length > 0) && (
@@ -801,7 +1092,7 @@ export default function CategoryPage() {
                       priceFilter[1] < (availableFilters.priceRange.maxPrice || 1000000)) && (
                       <span className="px-3 py-1.5 bg-[#b2965a]/10 text-[#b2965a] text-sm rounded-full border border-[#b2965a]/20 flex items-center gap-1">
                         <FiTag className="w-3 h-3" />
-                        Price: ₹{priceFilter[0].toLocaleString()} - ₹{priceFilter[1].toLocaleString()}
+                        Price: {formatPrice(priceFilter[0])} - {formatPrice(priceFilter[1])}
                       </span>
                     )}
                     {selectedColors.map(color => (
@@ -819,10 +1110,10 @@ export default function CategoryPage() {
             </div>
           </div>
 
-          {/* Main Content - Professional Layout */}
+          {/* Main Content */}
           <div className="flex-1">
-            {/* Toolbar - Professional Design */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
+            {/* Desktop Toolbar */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div className="flex flex-col">
                   <div className="text-gray-600 text-sm">
@@ -839,7 +1130,7 @@ export default function CategoryPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  {/* Sort - Professional Select */}
+                  {/* Sort */}
                   <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Sort by
@@ -860,7 +1151,7 @@ export default function CategoryPage() {
                     </div>
                   </div>
 
-                  {/* View Mode - Professional Toggle */}
+                  {/* View Mode */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       View
@@ -890,6 +1181,37 @@ export default function CategoryPage() {
                       </button>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Toolbar (Simplified) */}
+            <div className="lg:hidden mb-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  Showing {Math.min(itemsPerPage, products.length)} of {totalProducts}
+                </div>
+                <div className="flex bg-gray-100 rounded-lg p-1 shadow-inner">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-2 rounded transition-all duration-200 ${
+                      viewMode === "grid" 
+                        ? "bg-white shadow-sm text-[#b2965a]" 
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <FiGrid className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`p-2 rounded transition-all duration-200 ${
+                      viewMode === "list" 
+                        ? "bg-white shadow-sm text-[#b2965a]" 
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <FiList className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -933,7 +1255,7 @@ export default function CategoryPage() {
               </div>
             )}
 
-            {/* Pagination - Professional Design */}
+            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-12 pt-8 border-t border-gray-200">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">

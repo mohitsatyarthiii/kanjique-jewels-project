@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import api from "../utils/axiosInstance";
+import { useCurrency } from '../context/CurrencyContext';
 import {
   FiFilter,
   FiGrid,
@@ -15,7 +16,9 @@ import {
   FiAward,
   FiPackage,
   FiInfo,
-  FiCheck
+  FiCheck,
+  FiSliders,
+  FiChevronDown
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -45,9 +48,13 @@ export default function ProductsPage() {
     sizes: [],
     priceRange: { minPrice: 0, maxPrice: 500000 }
   });
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const itemsPerPage = 30;
 
-  // Categories for filter sidebar (icons removed)
+  // Get currency functions
+  const { format: formatPrice, currency, rates, loading: currencyLoading } = useCurrency();
+
+  // Categories for filter sidebar
   const categories = [
     { value: "Rings", label: "Rings" },
     { value: "Bangles", label: "Bangles" },
@@ -83,6 +90,31 @@ export default function ProductsPage() {
     { value: "name-asc", label: "Name: A to Z", icon: <FiPackage className="w-4 h-4" /> },
     { value: "name-desc", label: "Name: Z to A", icon: <FiPackage className="w-4 h-4 rotate-180" /> }
   ];
+
+  // Close mobile filters when screen size increases
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setMobileFiltersOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Prevent body scroll when mobile filters are open
+  useEffect(() => {
+    if (mobileFiltersOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileFiltersOpen]);
 
   // Fetch available filters
   useEffect(() => {
@@ -152,17 +184,16 @@ export default function ProductsPage() {
 
         // Apply category filter
         if (selectedCategories.length > 0) {
-          params.category = selectedCategories[0]; // Take first category for API
+          params.category = selectedCategories[0];
         }
 
         // Apply color filter
         if (selectedColors.length > 0) {
-          params.color = selectedColors[0]; // Take first color for API
+          params.color = selectedColors[0];
         }
 
         console.log("Fetching products with params:", params);
         
-        // Use public products endpoint
         const res = await api.get("/api/public/products", { params });
         console.log("Products response:", res.data);
         
@@ -215,6 +246,10 @@ export default function ProductsPage() {
   const handleSortChange = (sort) => {
     setSortBy(sort);
     setCurrentPage(1);
+    // Close mobile filters after applying sort on mobile
+    if (window.innerWidth < 1024) {
+      setMobileFiltersOpen(false);
+    }
   };
 
   const handleSearch = (e) => {
@@ -247,19 +282,9 @@ export default function ProductsPage() {
     return "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
   };
 
-  // Get stock status - Same logic as category page
+  // Get stock status
   const getStockStatus = (product) => {
-    console.log("Checking stock for product:", product._id, product.title);
-    console.log("Product data:", {
-      inStock: product.inStock,
-      totalStock: product.totalStock,
-      variants: product.variants,
-      stockQuantity: product.stockQuantity
-    });
-    
-    // First, check if product has direct inStock field
     if (typeof product.inStock !== 'undefined') {
-      console.log("Using direct inStock field:", product.inStock);
       return {
         inStock: product.inStock,
         quantity: product.totalStock || product.stockQuantity || 0,
@@ -268,41 +293,28 @@ export default function ProductsPage() {
       };
     }
     
-    // Check if product has variants
     if (product.variants && product.variants.length > 0) {
-      // Calculate total stock from all variants
       const totalVariantStock = product.variants.reduce((total, variant) => {
         return total + (variant.stockQuantity || 0);
       }, 0);
       
-      // Check if any variant has stock
       const hasStock = product.variants.some(variant => (variant.stockQuantity || 0) > 0);
-      
-      console.log("Using variant stock calculation:", { hasStock, totalVariantStock });
       
       return {
         inStock: hasStock,
         quantity: totalVariantStock,
         isLow: totalVariantStock < 10 && totalVariantStock > 0,
-        variantStock: product.variants.map(v => ({
-          color: v.color?.name || 'N/A',
-          size: v.size || 'N/A',
-          stock: v.stockQuantity || 0,
-          inStock: (v.stockQuantity || 0) > 0
-        }))
       };
     }
     
-    // If no inStock field and no variants, assume in stock for display
-    console.log("No stock data found, assuming in stock");
     return {
       inStock: true,
-      quantity: 100, // Default value
+      quantity: 100,
       isLow: false
     };
   };
 
-  // Get price display
+  // Get price display - UPDATED with currency formatting
   const getPriceDisplay = (product) => {
     const basePrice = product.basePrice || product.displayPrice || 0;
     const salePrice = product.baseSalePrice || (product.displayPrice !== basePrice ? product.displayPrice : null);
@@ -312,8 +324,12 @@ export default function ProductsPage() {
       return (
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-gray-900">₹{salePrice.toLocaleString()}</span>
-            <span className="text-sm text-gray-500 line-through">₹{basePrice.toLocaleString()}</span>
+            <span className="text-lg font-bold text-gray-900">
+              {formatPrice(salePrice)}
+            </span>
+            <span className="text-sm text-gray-500 line-through">
+              {formatPrice(basePrice)}
+            </span>
           </div>
           <span className="text-xs text-red-600 font-semibold mt-1">
             Save {discountPercent}%
@@ -321,10 +337,10 @@ export default function ProductsPage() {
         </div>
       );
     }
-    return <span className="text-lg font-bold text-gray-900">₹{basePrice.toLocaleString()}</span>;
+    return <span className="text-lg font-bold text-gray-900">{formatPrice(basePrice)}</span>;
   };
 
-  // Modern Product Card Component (Grid View)
+  // Modern Product Card Component
   const ProductCard = ({ product, index }) => {
     const [isHovered, setIsHovered] = useState(false);
     const stockStatus = getStockStatus(product);
@@ -353,20 +369,25 @@ export default function ProductsPage() {
               </div>
             )}
             
-            {/* Stock Badge - Show only if out of stock or low stock */}
             {!stockStatus.inStock && (
               <div className="px-3 py-1 bg-gray-600 text-white text-xs font-bold rounded-full shadow-lg">
                 Out of Stock
               </div>
             )}
             
-            {/* Low Stock Badge */}
             {stockStatus.inStock && stockStatus.isLow && (
               <div className="px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
                 Only {stockStatus.quantity} left
               </div>
             )}
           </div>
+
+          {/* Currency Indicator */}
+          {currency !== 'INR' && (
+            <div className="absolute top-3 right-3 z-10 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg">
+              {currency}
+            </div>
+          )}
 
           {/* Product Image */}
           <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
@@ -421,7 +442,6 @@ export default function ProductsPage() {
 
           {/* Product Info */}
           <div className="p-4">
-            {/* Category */}
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-[#b2965a] uppercase tracking-wider">
                 {product.category || "Jewelry"}
@@ -433,24 +453,20 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {/* Title */}
             <Link to={`/product/${product._id}`}>
               <h3 className="font-bold text-gray-900 mb-2 line-clamp-1 hover:text-[#b2965a] transition-colors duration-300">
                 {product.title || "Untitled Product"}
               </h3>
             </Link>
 
-            {/* Short Description */}
             <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
               {product.shortDescription || "Premium quality jewelry piece."}
             </p>
 
-            {/* Price */}
             <div className="mb-4">
               {getPriceDisplay(product)}
             </div>
 
-            {/* Stock Status - Updated with proper logic */}
             <div className="flex items-center justify-between mb-4">
               <div className={`text-xs px-2 py-1 rounded-full ${
                 stockStatus.inStock 
@@ -469,16 +485,14 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {/* Action Buttons */}
-           <div className="flex gap-4">
-  <Link
-    to={`/product/${product._id}`}
-    className="w-full bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-all hover:scale-[1.02]"
-  >
-    <FiEye className="w-4 h-4" /> View Details
-  </Link>
-</div>
-
+            <div className="flex gap-4">
+              <Link
+                to={`/product/${product._id}`}
+                className="w-full bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-all hover:scale-[1.02]"
+              >
+                <FiEye className="w-4 h-4" /> View Details
+              </Link>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -499,7 +513,6 @@ export default function ProductsPage() {
       >
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden">
           <div className="flex flex-col md:flex-row">
-            {/* Image Section */}
             <div className="md:w-48 md:h-48 relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
               <Link to={`/product/${product._id}`}>
                 <img
@@ -513,7 +526,6 @@ export default function ProductsPage() {
                 />
               </Link>
               
-              {/* Badges */}
               <div className="absolute top-3 left-3 flex flex-col gap-1">
                 {product.isFeatured && (
                   <div className="px-2 py-1 bg-[#b2965a] text-white text-xs font-bold rounded">
@@ -527,7 +539,6 @@ export default function ProductsPage() {
                 )}
               </div>
               
-              {/* Stock Badge */}
               {!stockStatus.inStock && (
                 <div className="absolute bottom-3 left-3">
                   <div className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
@@ -535,12 +546,16 @@ export default function ProductsPage() {
                   </div>
                 </div>
               )}
+
+              {currency !== 'INR' && (
+                <div className="absolute top-3 right-3 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-lg">
+                  {currency}
+                </div>
+              )}
             </div>
 
-            {/* Info Section */}
             <div className="flex-1 p-6">
               <div className="flex flex-col h-full">
-                {/* Header */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-semibold text-[#b2965a] uppercase tracking-wider">
@@ -560,7 +575,6 @@ export default function ProductsPage() {
                   </p>
                 </div>
 
-                {/* Details */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                   <div>
                     <div className="text-xs text-gray-500 mb-1">Price</div>
@@ -605,16 +619,14 @@ export default function ProductsPage() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex gap-4">
-  <Link
-    to={`/product/${product._id}`}
-    className="w-full bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-all hover:scale-[1.02]"
-  >
-    <FiEye className="w-4 h-4" /> View Details
-  </Link>
-</div>
-
+                  <Link
+                    to={`/product/${product._id}`}
+                    className="w-full bg-gradient-to-r from-[#b2965a] to-[#d4b97d] text-white py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-all hover:scale-[1.02]"
+                  >
+                    <FiEye className="w-4 h-4" /> View Details
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -623,7 +635,7 @@ export default function ProductsPage() {
     );
   };
 
-  if (loading) {
+  if (loading || currencyLoading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-32 pb-40 flex items-center justify-center">
         <div className="text-center">
@@ -660,24 +672,226 @@ export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            {searchQuery ? `Search Results for "${searchQuery}"` : "All Products"}
-          </h1>
-          <p className="text-gray-600">
-            {searchQuery 
-              ? `Browse products matching "${searchQuery}"` 
-              : 'Discover our complete range of premium jewelry'}
-            <span className="block text-sm text-gray-500 mt-1">
-              {totalProducts} products available
-            </span>
-          </p>
+        {/* Header with Currency Display */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+              {searchQuery ? `Search Results for "${searchQuery}"` : "All Products"}
+            </h1>
+            <p className="text-gray-600">
+              {searchQuery 
+                ? `Browse products matching "${searchQuery}"` 
+                : 'Discover our complete range of premium jewelry'}
+              <span className="block text-sm text-gray-500 mt-1">
+                {totalProducts} products available
+              </span>
+            </p>
+          </div>
+          
+          {/* Currency Display */}
+          <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+            <span className="text-sm text-gray-600">Prices in </span>
+            <span className="font-bold text-[#b2965a]">{currency}</span>
+            {currency !== 'INR' && rates[currency] && (
+              <span className="text-xs text-gray-500 ml-2">
+                (1 INR = {rates[currency].toFixed(4)} {currency})
+              </span>
+            )}
+          </div>
         </div>
 
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setMobileFiltersOpen(true)}
+            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between shadow-sm"
+          >
+            <span className="flex items-center gap-2">
+              <FiSliders className="w-5 h-5 text-[#b2965a]" />
+              <span className="font-semibold text-gray-700">Filters & Sort</span>
+            </span>
+            <div className="flex items-center gap-2">
+              {(selectedCategories.length > 0 || selectedColors.length > 0) && (
+                <span className="bg-[#b2965a] text-white text-xs px-2 py-1 rounded-full">
+                  {selectedCategories.length + selectedColors.length}
+                </span>
+              )}
+              <FiChevronDown className="w-5 h-5 text-gray-400" />
+            </div>
+          </button>
+        </div>
+
+        {/* Mobile Filters Drawer */}
+        <AnimatePresence>
+          {mobileFiltersOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setMobileFiltersOpen(false)}
+                className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+              />
+              
+              {/* Drawer */}
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'tween', duration: 0.3 }}
+                className="fixed top-0 right-0 h-full w-full max-w-sm bg-white z-50 lg:hidden overflow-y-auto"
+              >
+                <div className="p-6">
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">Filters & Sort</h3>
+                    <button
+                      onClick={() => setMobileFiltersOpen(false)}
+                      className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                    >
+                      <FiX className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Mobile Filters Content */}
+                  <div className="space-y-8">
+                    {/* Sort Options */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Sort By</h4>
+                      <div className="space-y-2">
+                        {sortOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => handleSortChange(option.value)}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-3 ${
+                              sortBy === option.value
+                                ? 'bg-[#b2965a] text-white shadow-md'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {option.icon}
+                            <span>{option.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Categories */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Categories</h4>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => setSelectedCategories([])}
+                          className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            selectedCategories.length === 0
+                              ? 'bg-[#b2965a] text-white shadow-md'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          All Categories
+                        </button>
+                        {categories.map((cat) => (
+                          <button
+                            key={cat.value}
+                            onClick={() => handleCategoryToggle(cat.value)}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                              selectedCategories.includes(cat.value)
+                                ? 'bg-[#b2965a] text-white shadow-md'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Colors */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Colors</h4>
+                      <div className="flex flex-wrap gap-3">
+                        {colorOptions.map((color) => (
+                          <button
+                            key={color.name}
+                            onClick={() => handleColorToggle(color.name)}
+                            className={`relative w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                              selectedColors.includes(color.name)
+                                ? 'border-[#b2965a] scale-110 shadow-lg'
+                                : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                            style={{ backgroundColor: color.hexCode }}
+                            title={color.name}
+                          >
+                            {selectedColors.includes(color.name) && (
+                              <FiCheck className="absolute inset-0 m-auto w-5 h-5 text-white stroke-[3]" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Price Range */}
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-gray-700">
+                            {formatPrice(priceFilter[0])}
+                          </span>
+                          <span className="font-medium text-gray-700">
+                            {formatPrice(priceFilter[1])}
+                          </span>
+                        </div>
+                        <div className="relative pt-1">
+                          <input
+                            type="range"
+                            min={availableFilters.priceRange.minPrice || 0}
+                            max={availableFilters.priceRange.maxPrice || 500000}
+                            value={priceFilter[0]}
+                            onChange={(e) => handlePriceChange(Number(e.target.value), priceFilter[1])}
+                            className="w-full"
+                          />
+                          <input
+                            type="range"
+                            min={availableFilters.priceRange.minPrice || 0}
+                            max={availableFilters.priceRange.maxPrice || 500000}
+                            value={priceFilter[1]}
+                            onChange={(e) => handlePriceChange(priceFilter[0], Number(e.target.value))}
+                            className="w-full mt-2"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Apply & Clear Buttons */}
+                    <div className="flex gap-4 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => {
+                          clearFilters();
+                          setMobileFiltersOpen(false);
+                        }}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+                      >
+                        Clear All
+                      </button>
+                      <button
+                        onClick={() => setMobileFiltersOpen(false)}
+                        className="flex-1 bg-[#b2965a] text-white px-4 py-3 rounded-lg font-semibold hover:bg-[#9c8146] transition-colors"
+                      >
+                        Apply Filters
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters - Professional UI */}
-          <div className="lg:w-64 flex-shrink-0">
+          {/* Desktop Sidebar Filters */}
+          <div className="hidden lg:block lg:w-64 flex-shrink-0">
             <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 sticky top-24">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-bold text-gray-900 text-lg">Filters</h3>
@@ -689,7 +903,7 @@ export default function ProductsPage() {
                 </button>
               </div>
 
-              {/* Categories - Icons removed */}
+              {/* Categories */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4 flex items-center justify-between">
                   <span>Categories</span>
@@ -725,13 +939,13 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Price Range - Professional Slider */}
+              {/* Price Range */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4">Price Range</h4>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-700">₹{priceFilter[0].toLocaleString()}</span>
-                    <span className="font-medium text-gray-700">₹{priceFilter[1].toLocaleString()}</span>
+                    <span className="font-medium text-gray-700">{formatPrice(priceFilter[0])}</span>
+                    <span className="font-medium text-gray-700">{formatPrice(priceFilter[1])}</span>
                   </div>
                   <div className="relative pt-1">
                     <div className="h-2 bg-gray-200 rounded-full">
@@ -765,7 +979,7 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Colors - Professional Color Selector */}
+              {/* Colors */}
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-4">Colors</h4>
                 <div className="flex flex-wrap gap-3">
@@ -789,7 +1003,7 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Sort - Professional Select */}
+              {/* Sort */}
               <div className="pt-6 border-t border-gray-200">
                 <h4 className="font-bold text-gray-900 mb-3">Sort By</h4>
                 <div className="space-y-2">
@@ -812,10 +1026,10 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Main Content - Professional Layout */}
+          {/* Main Content */}
           <div className="flex-1">
-            {/* Toolbar - Professional Design */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
+            {/* Desktop Toolbar */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div className="flex flex-col">
                   <div className="text-gray-600 text-sm">
@@ -839,7 +1053,6 @@ export default function ProductsPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  {/* Search - Professional Input */}
                   <form onSubmit={handleSearch} className="relative">
                     <div className="relative">
                       <input
@@ -862,7 +1075,6 @@ export default function ProductsPage() {
                     </div>
                   </form>
 
-                  {/* View Mode - Professional Toggle */}
                   <div>
                     <div className="flex bg-gray-100 rounded-lg p-1 shadow-inner">
                       <button
@@ -889,6 +1101,57 @@ export default function ProductsPage() {
                       </button>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Toolbar (Simplified) */}
+            <div className="lg:hidden mb-4">
+              <form onSubmit={handleSearch} className="relative mb-4">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products..."
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-sm focus:border-[#b2965a] focus:ring-2 focus:ring-[#b2965a]/30 outline-none bg-white shadow-sm"
+                />
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <FiX className="w-4 h-4" />
+                  </button>
+                )}
+              </form>
+              
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  Showing {Math.min(itemsPerPage, products.length)} of {totalProducts}
+                </div>
+                <div className="flex bg-gray-100 rounded-lg p-1 shadow-inner">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-2 rounded transition-all duration-200 ${
+                      viewMode === "grid" 
+                        ? "bg-white shadow-sm text-[#b2965a]" 
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <FiGrid className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`p-2 rounded transition-all duration-200 ${
+                      viewMode === "list" 
+                        ? "bg-white shadow-sm text-[#b2965a]" 
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <FiList className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -936,7 +1199,7 @@ export default function ProductsPage() {
               </div>
             )}
 
-            {/* Pagination - Professional Design */}
+            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-12 pt-8 border-t border-gray-200">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">

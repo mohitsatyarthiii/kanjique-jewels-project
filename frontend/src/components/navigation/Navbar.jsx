@@ -11,6 +11,7 @@ import {
   FiChevronDown,
   FiLogOut,
   FiSearch,
+  FiDollarSign
 } from "react-icons/fi";
 import { MdOutlineAccountCircle, MdOutlineShoppingBag } from "react-icons/md";
 import SearchBar from "../../components/SearchBar";
@@ -21,7 +22,7 @@ const categories = [
   { title: "Necklaces", category: "Necklaces" },
   { title: "Earrings", category: "Earrings" },
   { title: "Rings", category: "Rings" },
-  { title: "Bracelets", category: "Bracelets & Bangles" },
+  { title: "Bracelets", category: "Bracelets" },
   { title: "Collections", category: "Collections" },
 ];
 
@@ -276,27 +277,38 @@ const Navbar = ({ homeTransparent = false }) => {
                   </NavLink>
                 )}
 
-                {/* Currency selector */}
-                <div>
-                  <CurrencySelector />
+                {/* Currency selector - Desktop */}
+                <div className="hidden md:block">
+                  <CurrencySelector isGlass={isGlass} />
                 </div>
               </div>
 
-              {/* MOBILE ACTIONS */}
+              {/* MOBILE ACTIONS - UPDATED with Currency Selector */}
               <div
                 className={[
-                  "md:hidden flex items-center gap-5 transition-colors",
+                  "md:hidden flex items-center gap-4 transition-colors",
                   isGlass ? "text-gray-900" : "text-white",
                 ].join(" ")}
               >
-                <button
-                  className="active:scale-95 transition"
-                  aria-label="Search"
-                  onClick={() => setOpen(true)}
-                >
-                  <FiSearch className="w-5 h-5" />
-                </button>
+                {/* Mobile Currency Selector - Compact Version */}
+                <div className="block md:hidden">
+                  <CurrencySelector isGlass={isGlass} mobile={true} />
+                </div>
 
+                {/* Cart with Count - Mobile */}
+                <NavLink
+                  to="/cart"
+                  className="relative hover:opacity-80 transition"
+                >
+                  <FiShoppingCart className="w-5 h-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-[#b2965a] text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                      {cartCount}
+                    </span>
+                  )}
+                </NavLink>
+
+                {/* Menu Button */}
                 <button
                   className="text-2xl leading-none active:scale-95 transition"
                   onClick={() => setOpen(true)}
@@ -310,7 +322,7 @@ const Navbar = ({ homeTransparent = false }) => {
         </div>
       </motion.header>
 
-      {/* MOBILE MENU */}
+      {/* MOBILE MENU - Keep original but add currency selector in quick icons */}
       <AnimatePresence>
         {open && (
           <>
@@ -337,11 +349,12 @@ const Navbar = ({ homeTransparent = false }) => {
                 <SearchBar onCloseMobileMenu={() => setOpen(false)} />
               </div>
 
-              {/* Quick Icons */}
+              {/* Quick Icons - UPDATED with Currency Selector */}
               <div className="flex justify-around mb-7 text-gray-900">
                 <MobileIcon label="Wishlist" to="/wishlist">
                   <FiHeart className="w-6 h-6" />
                 </MobileIcon>
+                
                 <MobileIcon label="Cart" to="/cart">
                   <div className="relative">
                     <FiShoppingCart className="w-6 h-6" />
@@ -352,6 +365,15 @@ const Navbar = ({ homeTransparent = false }) => {
                     )}
                   </div>
                 </MobileIcon>
+                
+                {/* Currency Selector as an icon in mobile menu */}
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                    <CurrencySelector isGlass={false} mobile={true} menu={true} />
+                  </div>
+                  <span className="text-xs text-gray-600">Currency</span>
+                </div>
+                
                 {user ? (
                   <MobileIcon label="Account" to="/profile">
                     <div className="w-8 h-8 bg-gradient-to-r from-[#b2965a] to-[#d4b97d] rounded-full flex items-center justify-center">

@@ -6,31 +6,16 @@ import {
   Share2,
   Shield,
   Truck,
-  RotateCcw,
   Check,
   ShoppingBag,
   ChevronRight,
-  Package,
   Minus,
   Plus,
-  ShoppingCart,
   AlertCircle,
-  Gift,
-  X,
-  CheckCircle,
-  CreditCard,
   Camera,
-  Loader2,
-  Palette,
-  Ruler,
-  Gem,
-  Layers,
-  ChevronLeft,
-  ChevronRight as ChevronRightIcon,
-  Zap,
-  Clock,
   ShieldCheck,
-  TrendingUp
+  TrendingUp,
+  X
 } from "lucide-react";
 import { motion } from "framer-motion";
 import api from "../../utils/axiosInstance";
@@ -50,11 +35,13 @@ export default function ProductPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState(false);
-  const [activeTab, setActiveTab] = useState("description");
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [zoomImage, setZoomImage] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
+
+  // Get currency functions
+  const { format: formatPrice, currency, rates, loading: currencyLoading } = useCurrency();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -149,9 +136,7 @@ export default function ProductPage() {
   };
 
   const handleQuantityChange = (change) => {
-    console.log("Quantity change clicked:", change, "Current quantity:", quantity);
     const newQuantity = Math.max(1, quantity + change);
-    console.log("New quantity:", newQuantity);
     setQuantity(newQuantity);
   };
 
@@ -277,7 +262,7 @@ export default function ProductPage() {
     setZoomPosition({ x, y });
   };
 
-  if (loading) {
+  if (loading || currencyLoading) {
     return (
       <div className="min-h-screen bg-white pt-24 pb-40 flex items-center justify-center">
         <div className="text-center">
@@ -331,16 +316,14 @@ export default function ProductPage() {
   const originalPrice = getOriginalPrice();
   const discountPercentage = getDiscountPercentage();
   const stockStatus = getStockStatus();
-  const { format } = useCurrency();
   const availableColors = getAvailableColors();
   const availableSizes = getAvailableSizes();
-  const hasVariants = product.variants && product.variants.length > 0;
 
   return (
     <div className="min-h-screen bg-white pt-20">
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Breadcrumb - Sleek Version */}
+        {/* Breadcrumb */}
         <div className="flex items-center gap-1 text-sm text-gray-500 mb-8">
           <Link to="/" className="hover:text-[#ff3f6c] transition-colors duration-200">
             Home
@@ -504,29 +487,29 @@ export default function ProductPage() {
               </div>
             </div>
 
-            {/* Price Section */}
+            {/* Price Section - UPDATED */}
             <div className="mb-8 p-4 bg-gray-50 rounded-lg">
               <div className="flex items-baseline gap-3 mb-2">
                 <span className="text-3xl font-bold text-gray-900">
-                  {format ? format(currentPrice) : `₹${currentPrice.toLocaleString()}`}
+                  {formatPrice(currentPrice)}
                 </span>
                 {originalPrice && originalPrice > currentPrice && (
                   <>
                     <span className="text-xl text-gray-500 line-through">
-                      {format ? format(originalPrice) : `₹${originalPrice.toLocaleString()}`}
+                      {formatPrice(originalPrice)}
                     </span>
                     <span className="text-sm font-bold text-[#ff3f6c] bg-[#ff3f6c]/10 px-2 py-1 rounded">
-                      {Math.round(((originalPrice - currentPrice) / originalPrice) * 100)}% OFF
+                      {discountPercentage}% OFF
                     </span>
                   </>
                 )}
               </div>
               <p className="text-sm text-gray-600">
-                incl. of all taxes
+                incl. of all taxes • {currency} {rates[currency] ? `(1 INR = ${rates[currency]} ${currency})` : ''}
               </p>
             </div>
 
-            {/* Color Selection - Enhanced */}
+            {/* Color Selection */}
             {availableColors.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-3">
@@ -566,7 +549,7 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Size Selection - Enhanced */}
+            {/* Size Selection */}
             {availableSizes.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-3">
@@ -608,7 +591,7 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Quantity & Actions */}
+            {/* Quantity & Actions - UPDATED */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-gray-900">Quantity</h3>
@@ -621,10 +604,7 @@ export default function ProductPage() {
                 <div className="flex items-center border-2 border-[#b2965a] rounded-lg overflow-hidden bg-white">
                   <button
                     type="button"
-                    onClick={() => {
-                      console.log("Minus button clicked");
-                      handleQuantityChange(-1);
-                    }}
+                    onClick={() => handleQuantityChange(-1)}
                     disabled={quantity <= 1}
                     className="w-12 h-12 flex items-center justify-center text-[#b2965a] hover:bg-[#fef8e9] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
@@ -635,10 +615,7 @@ export default function ProductPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      console.log("Plus button clicked");
-                      handleQuantityChange(1);
-                    }}
+                    onClick={() => handleQuantityChange(1)}
                     disabled={!stockStatus.inStock || quantity >= stockStatus.quantity}
                     className="w-12 h-12 flex items-center justify-center text-[#b2965a] hover:bg-[#fef8e9] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
@@ -647,7 +624,7 @@ export default function ProductPage() {
                 </div>
                 
                 <div className="text-lg font-bold text-gray-900">
-                  Total: <span className="text-[#b2965a]">{format ? format(currentPrice * quantity) : `₹${(currentPrice * quantity).toLocaleString()}`}</span>
+                  Total: <span className="text-[#b2965a]">{formatPrice(currentPrice * quantity)}</span>
                 </div>
               </div>
 
@@ -690,11 +667,9 @@ export default function ProductPage() {
                 <div>
                   <p className="font-semibold text-gray-900">Free Delivery</p>
                   <p className="text-sm text-gray-600">Delivery in 3-5 days</p>
-                  
                 </div>
               </div>
             
-              
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
@@ -706,10 +681,7 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* Product Details Tabs */}
-        
-
-        {/* Related Products - Enhanced */}
+        {/* Related Products - UPDATED */}
         {relatedProducts.length > 0 && (
           <div className="pt-12 border-t border-gray-200">
             <div className="flex items-center justify-between mb-8">
@@ -768,11 +740,11 @@ export default function ProductPage() {
                       )}
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-gray-900">
-                          {format ? format((relatedProduct.displayPrice || relatedProduct.basePrice)) : `₹${(relatedProduct.displayPrice || relatedProduct.basePrice).toLocaleString()}`}
+                          {formatPrice(relatedProduct.displayPrice || relatedProduct.basePrice)}
                         </span>
                         {relatedProduct.hasDiscount && (
                           <span className="text-xs text-gray-500 line-through">
-                            {format ? format(relatedProduct.basePrice) : `₹${relatedProduct.basePrice.toLocaleString()}`}
+                            {formatPrice(relatedProduct.basePrice)}
                           </span>
                         )}
                       </div>
