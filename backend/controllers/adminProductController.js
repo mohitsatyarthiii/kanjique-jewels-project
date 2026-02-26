@@ -163,7 +163,7 @@ export const getAdminProducts = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit = 100, 
+      limit = 10000, 
       category, 
       subCategory, 
       gender,
