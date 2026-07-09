@@ -31,11 +31,8 @@ const __dirname = path.dirname(__filename);
 connectDB();
 // CORS Configuration for Production
 const allowedOrigins = [
-  "https://kanjique-jewels-project-2.onrender.com",
   "https://kanjiquejewels.com",
   "https://www.kanjiquejewels.com",
-  "http://kanjiquejewels.com",
-  "http://localhost:5173",
 ];
 
 app.use(cors({
