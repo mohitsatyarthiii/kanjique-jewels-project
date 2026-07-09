@@ -110,6 +110,9 @@ const Footer = () => {
             <p>
               © {new Date().getFullYear()} Kanjique Jewels. All rights reserved.
             </p>
+            <p className="tracking-widest uppercase text-xs text-gray-500">
+              Maintained & Managed by <a href="https://editvo.com"> Editvo</a>
+            </p>
 
             <p className="tracking-widest uppercase text-xs text-gray-500">
               Crafted with care · Designed for elegance

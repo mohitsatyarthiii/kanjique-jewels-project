@@ -87,21 +87,92 @@ const SUB_CATEGORIES = {
 };
 
 // Available Colors with hex codes
-const AVAILABLE_COLORS = [
+export const AVAILABLE_COLORS = [
+  // ===== METALS =====
   { name: "Gold", hexCode: "#FFD700" },
+  { name: "Antique Gold", hexCode: "#CFB53B" },
+  { name: "Matte Gold", hexCode: "#D4AF37" },
   { name: "Rose Gold", hexCode: "#B76E79" },
   { name: "White Gold", hexCode: "#F5F5F5" },
   { name: "Silver", hexCode: "#C0C0C0" },
+  { name: "Oxidized Silver", hexCode: "#6C6C6C" },
   { name: "Platinum", hexCode: "#E5E4E2" },
+  { name: "Gunmetal", hexCode: "#2a3439" },
+
+  // ===== DIAMOND / WHITE =====
   { name: "Diamond White", hexCode: "#FFFFFF" },
+  { name: "Ivory", hexCode: "#FFFFF0" },
+  { name: "Champagne", hexCode: "#F7E7CE" },
+  { name: "Pearl White", hexCode: "#FDEEF4" },
+
+  // ===== RED FAMILY =====
   { name: "Ruby Red", hexCode: "#E0115F" },
+  { name: "Deep Red", hexCode: "#8B0000" },
+  { name: "Crimson", hexCode: "#DC143C" },
+  { name: "Maroon", hexCode: "#800000" },
+
+  // ===== GREEN FAMILY =====
   { name: "Emerald Green", hexCode: "#50C878" },
+  { name: "Mint", hexCode: "#98FF98" },
+  { name: "Mint Green", hexCode: "#AAF0D1" },
+  { name: "Olive", hexCode: "#808000" },
+  { name: "Forest Green", hexCode: "#228B22" },
+
+  // ===== BLUE FAMILY =====
   { name: "Sapphire Blue", hexCode: "#0F52BA" },
-  { name: "Black", hexCode: "#000000" },
-  { name: "Brown", hexCode: "#8B4513" },
+  { name: "Royal Blue", hexCode: "#4169E1" },
+  { name: "Navy Blue", hexCode: "#000080" },
+  { name: "Sky Blue", hexCode: "#87CEEB" },
+  { name: "Turquoise", hexCode: "#40E0D0" },
+  { name: "Teal", hexCode: "#008080" },
+
+  // ===== PINK FAMILY =====
   { name: "Pink", hexCode: "#FFC0CB" },
-  { name: "Purple", hexCode: "#800080" }
+  { name: "Blush Pink", hexCode: "#F4C2C2" },
+  { name: "Hot Pink", hexCode: "#FF69B4" },
+  { name: "Baby Pink", hexCode: "#FADADD" },
+
+  // ===== PURPLE =====
+  { name: "Purple", hexCode: "#800080" },
+  { name: "Lavender", hexCode: "#E6E6FA" },
+  { name: "Amethyst", hexCode: "#9966CC" },
+  { name: "Violet", hexCode: "#8F00FF" },
+
+  // ===== YELLOW / ORANGE =====
+  { name: "Yellow", hexCode: "#FFFF00" },
+  { name: "Mustard", hexCode: "#FFDB58" },
+  { name: "Amber", hexCode: "#FFBF00" },
+  { name: "Orange", hexCode: "#FFA500" },
+  { name: "Coral", hexCode: "#FF7F50" },
+
+  // ===== BROWN / NUDE =====
+  { name: "Brown", hexCode: "#8B4513" },
+  { name: "Chocolate", hexCode: "#7B3F00" },
+  { name: "Coffee", hexCode: "#6F4E37" },
+  { name: "Beige", hexCode: "#F5F5DC" },
+  { name: "Nude", hexCode: "#E3BC9A" },
+
+  // ===== DARK / NEUTRAL =====
+  { name: "Black", hexCode: "#000000" },
+  { name: "Charcoal", hexCode: "#36454F" },
+  { name: "Grey", hexCode: "#808080" },
+  { name: "Light Grey", hexCode: "#D3D3D3" },
+
+  // ===== GEMSTONE SPECIAL =====
+  { name: "Opal", hexCode: "#A8C3BC" },
+  { name: "Topaz Blue", hexCode: "#0ABAB5" },
+  { name: "Citrine", hexCode: "#E4D00A" },
+  { name: "Peridot", hexCode: "#B4C424" },
+  { name: "Garnet", hexCode: "#733635" },
+
+  // ===== TRENDY ENAMEL / PASTEL =====
+  { name: "Pastel Peach", hexCode: "#FFDAB9" },
+  { name: "Pastel Blue", hexCode: "#AEC6CF" },
+  { name: "Pastel Green", hexCode: "#C1E1C1" },
+  { name: "Lilac", hexCode: "#C8A2C8" },
+  { name: "Seafoam", hexCode: "#9FE2BF" }
 ];
+
 
 // Ring sizes in numbers
 const RING_SIZES = ['Size 5', 'Size 6', 'Size 7', 'Size 8', 'Size 9', 'Size 10', 'Size 11', 'Size 12'];

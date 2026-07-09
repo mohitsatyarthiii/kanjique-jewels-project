@@ -15,7 +15,7 @@ const Homepage = () => {
         <Hero/>
         <BlackMarquee/>
         <WomensCollectionSection/>
-        <Categories/>
+        
         <TabbedProducts/>
         <GiftGuideSection/>
        
