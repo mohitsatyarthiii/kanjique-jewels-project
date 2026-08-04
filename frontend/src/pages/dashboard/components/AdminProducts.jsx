@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import AdminLayout from "./AdminLayout";
 import api from "../../../utils/axiosInstance";
+import ProductImage from "../../../components/ProductImage";
 import { 
   FiEdit2, 
   FiTrash2, 
@@ -377,7 +378,8 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
         variants: initialProduct.variants || []
       });
       
-      setMainImagePreviews(initialProduct.mainImages?.map(img => img.url) || []);
+      setMainImagePreviews(initialProduct.mainImages?.map(image => ({ url: image.url, image, existing: true })) || []);
+      setMainImages([]);
       setVariants(initialProduct.variants || []);
     } else {
       resetForm();
@@ -438,18 +440,27 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
 
     setMainImages(prev => [...prev, ...files]);
 
-    const newPreviews = files.map(file => URL.createObjectURL(file));
+    const newPreviews = files.map(file => ({ url: URL.createObjectURL(file), file, existing: false }));
     setMainImagePreviews(prev => [...prev, ...newPreviews]);
   };
 
   const removeMainImage = (index) => {
-    const url = mainImagePreviews[index];
-    if (url && url.startsWith('blob:')) {
-      URL.revokeObjectURL(url);
+    const preview = mainImagePreviews[index];
+    if (preview?.url?.startsWith('blob:')) {
+      URL.revokeObjectURL(preview.url);
     }
-    
-    setMainImages(prev => prev.filter((_, i) => i !== index));
+    if (preview?.file) setMainImages(prev => prev.filter(file => file !== preview.file));
     setMainImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const moveMainImage = (index, offset) => {
+    const target = index + offset;
+    if (target < 0 || target >= mainImagePreviews.length) return;
+    setMainImagePreviews(previews => {
+      const reordered = [...previews];
+      [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+      return reordered;
+    });
   };
 
   // Variants Management
@@ -517,9 +528,16 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
         formDataToSend.append("mainImages", image);
       });
 
-      // Add replaceImages flag if editing
-      if (initialProduct && mainImages.length > 0) {
-        formDataToSend.append("replaceImages", "true");
+      formDataToSend.append("mainImageOrder", JSON.stringify(mainImagePreviews.map(preview => {
+        if (!preview.existing) return `new:${mainImages.indexOf(preview.file)}`;
+        return `existing:${preview.image?._id || preview.image?.fileName || preview.image?.url}`;
+      })));
+
+      if (initialProduct) {
+        const existingImages = mainImagePreviews
+          .filter(preview => preview.existing)
+          .map(preview => preview.image?._id || preview.image?.fileName || preview.image?.url);
+        formDataToSend.append("existingMainImages", JSON.stringify(existingImages));
       }
 
       let response;
@@ -833,8 +851,8 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                   {mainImagePreviews.map((preview, index) => (
                     <div key={index} className="relative">
                       <div className="aspect-square rounded border border-gray-200 overflow-hidden bg-gray-100">
-                        <img
-                          src={preview}
+                        <ProductImage
+                          src={preview.url}
                           alt={`Preview ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
@@ -846,6 +864,10 @@ const ProductFormModal = ({ open, onClose, onSaved, initialProduct }) => {
                       >
                         <FiX className="w-3 h-3" />
                       </button>
+                      <div className="absolute bottom-1 left-1 flex gap-1">
+                        <button type="button" onClick={() => moveMainImage(index, -1)} disabled={index === 0} className="w-6 h-6 bg-white/90 rounded disabled:opacity-40" aria-label="Move image left">←</button>
+                        <button type="button" onClick={() => moveMainImage(index, 1)} disabled={index === mainImagePreviews.length - 1} className="w-6 h-6 bg-white/90 rounded disabled:opacity-40" aria-label="Move image right">→</button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -927,6 +949,8 @@ const AdminProducts = () => {
   // Fetch products on component mount and when refreshKey changes
   useEffect(() => {
     fetchProducts();
+    // Filters are applied to the loaded collection; refreshKey controls network refreshes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
  const fetchProducts = async () => {
@@ -1198,14 +1222,10 @@ const AdminProducts = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 border">
                           {product.mainImages?.[0]?.url ? (
-                            <img 
-                              src={product.mainImages[0].url} 
+                            <ProductImage
+                              src={product.mainImages[0]}
                               alt={product.title}
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = 'https://via.placeholder.com/48/cccccc/ffffff?text=No+Image';
-                              }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">

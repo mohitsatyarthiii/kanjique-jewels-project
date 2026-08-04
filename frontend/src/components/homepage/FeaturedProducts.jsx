@@ -2,13 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../utils/axiosInstance";
 import { FiShoppingBag } from "react-icons/fi";
-
-const fallbackImages = [
-  "https://i.postimg.cc/26kspQMN/2.png",
-  "https://i.postimg.cc/sXTt3BCM/3.png",
-  "https://i.postimg.cc/7h7gq1JZ/4.png",
-  "https://i.postimg.cc/GmQGZrC9/5.png"
-];
+import { getProductImage, usePlaceholderOnError } from "../../utils/productImages";
 
 const FeaturedProducts = () => {
   const sectionRef = useRef(null);
@@ -69,20 +63,6 @@ const FeaturedProducts = () => {
       clearTimeout(backupTimer);
     };
   }, []);
-
-  const getProductImage = (product, index) => {
-    if (product.mainImages?.length) {
-      const img = product.mainImages[0];
-      return typeof img === "string" ? img : img?.url;
-    }
-
-    if (product.images?.length) {
-      const img = product.images[0];
-      return typeof img === "string" ? img : img?.url;
-    }
-
-    return fallbackImages[index % fallbackImages.length];
-  };
 
   const getProductPrice = (product) => {
     const price =
@@ -175,13 +155,10 @@ const FeaturedProducts = () => {
                 style={{ minHeight: "220px" }}
               >
                 <img
-                  src={getProductImage(product, index)}
+                  src={getProductImage(product)}
                   alt={getProductTitle(product)}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  onError={(e) => {
-                    e.target.src =
-                      fallbackImages[index % fallbackImages.length];
-                  }}
+                  onError={usePlaceholderOnError}
                 />
 
                 <div

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../../utils/axiosInstance";
 import { useCurrency } from '../../context/CurrencyContext';
+import ProductImage from "../../components/ProductImage";
 import { 
   MapPin, 
   Package, 
@@ -27,12 +28,11 @@ export default function TestCheckoutPage() {
   const [address, setAddress] = useState("");
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Get currency functions
-  const { format: formatPrice, currency, rates, loading: currencyLoading, convertAmount, getSymbol } = useCurrency();
+  const { format: formatPrice, currency, rates, loading: currencyLoading, convertAmount } = useCurrency();
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -111,7 +111,7 @@ export default function TestCheckoutPage() {
       try {
         const profileRes = await api.get("/api/profile");
         userData = profileRes.data.user;
-      } catch (err) {
+      } catch {
         console.log("Could not fetch user profile");
       }
 
@@ -334,12 +334,6 @@ export default function TestCheckoutPage() {
   // Total includes subtotal + delivery - discount
   const total = subtotal + delivery - discount;
 
-  // Converted amounts for display
-  const subtotalConverted = convertAmount(subtotal);
-  const deliveryConverted = convertAmount(delivery);
-  const discountConverted = convertAmount(discount);
-  const totalConverted = convertAmount(total);
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-[#fef8e9]/10 pt-32 pb-40 relative overflow-hidden">
       {/* Golden Blobs Background */}
@@ -495,7 +489,7 @@ export default function TestCheckoutPage() {
                   {cart.items.map((item, index) => {
                     const product = item.product;
                     const price = item.price || 0;
-                    const imageUrl = product?.mainImages?.[0]?.url || "";
+                    const image = product?.mainImages?.[0];
                     const title = product?.title || "Product";
                     const category = product?.category || "";
                     
@@ -508,17 +502,7 @@ export default function TestCheckoutPage() {
                         className="flex gap-4 p-4 bg-white rounded-xl border border-[#f4e6c3] hover:shadow-lg transition-shadow"
                       >
                         <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] flex-shrink-0">
-                          {imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-8 h-8 text-[#b2965a]" />
-                            </div>
-                          )}
+                          <ProductImage src={image} alt={title} className="w-full h-full object-cover" />
                           <div className="absolute top-1 right-1 bg-white/90 backdrop-blur-sm text-xs font-bold px-2 py-1 rounded-full">
                             ×{item.quantity}
                           </div>

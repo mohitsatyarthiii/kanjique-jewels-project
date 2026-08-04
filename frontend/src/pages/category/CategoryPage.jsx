@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../utils/axiosInstance";
+import { getProductImage as productImageUrl, usePlaceholderOnError } from "../../utils/productImages";
 import { useCurrency } from '../../context/CurrencyContext';
 import { 
   FiFilter, 
@@ -288,11 +289,7 @@ export default function CategoryPage() {
 
   // Get product image
   const getProductImage = (product) => {
-    if (product.mainImages && product.mainImages.length > 0 && product.mainImages[0].url) {
-      return product.mainImages[0].url;
-    }
-    // Fallback image
-    return "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
+    return productImageUrl(product);
   };
 
   // Get stock status - Improved logic based on actual API response
@@ -381,8 +378,6 @@ export default function CategoryPage() {
   const ProductCard = ({ product, index }) => {
     const [isHovered, setIsHovered] = useState(false);
     const stockStatus = getStockStatus(product);
-    const currentPrice = product.baseSalePrice || product.basePrice || 0;
-    const originalPrice = product.baseSalePrice ? product.basePrice : null;
 
     return (
       <motion.div
@@ -455,10 +450,7 @@ export default function CategoryPage() {
                 className="w-full h-full object-cover"
                 animate={isHovered ? { scale: 1.05 } : { scale: 1 }}
                 transition={{ duration: 0.5 }}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
-                }}
+                onError={usePlaceholderOnError}
               />
               
               {/* Quick View Overlay */}
@@ -565,8 +557,6 @@ export default function CategoryPage() {
   // List View Product Component - UPDATED
   const ProductListCard = ({ product, index }) => {
     const stockStatus = getStockStatus(product);
-    const currentPrice = product.baseSalePrice || product.basePrice || 0;
-    const originalPrice = product.baseSalePrice ? product.basePrice : null;
 
     return (
       <motion.div
@@ -588,10 +578,7 @@ export default function CategoryPage() {
                   src={getProductImage(product)}
                   alt={product.title || "Product"}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
-                  }}
+                  onError={usePlaceholderOnError}
                 />
                 
                 {/* Badges */}

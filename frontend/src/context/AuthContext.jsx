@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
         const res = await api.get("/api/auth/me", { timeout: 5000 });
         setUser(res.data.user);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-      } catch (err) {
+      } catch {
         // User is not authenticated, clear stored data
         setUser(null);
         localStorage.removeItem("user");

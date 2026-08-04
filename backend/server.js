@@ -19,6 +19,9 @@ import adminOrderRoutes from "./routes/adminOrderRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
 import exchangeRoutes from './routes/exchangeRoutes.js';
 import { connectDB } from './config/db.js';
+import { ensureStorageDirectories, removeAbandonedStagingFiles, storageRoot } from "./services/imageStorage.js";
+import { resetLegacyProductImages } from "./services/productImageMigration.js";
+import { removeUnreferencedProductFiles } from "./services/storageMaintenance.js";
 
 dotenv.config();
 const app = express();
@@ -27,12 +30,17 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Connect to MongoDB
-connectDB();
+// Initialize persistent services before accepting requests.
+await connectDB();
+await ensureStorageDirectories();
+await resetLegacyProductImages();
+await removeAbandonedStagingFiles();
+await removeUnreferencedProductFiles();
 // CORS Configuration for Production
 const allowedOrigins = [
   "https://kanjiquejewels.com",
   "https://www.kanjiquejewels.com",
+  "http://localhost:5174"
 ];
 
 app.use(cors({
@@ -51,8 +59,14 @@ app.use("/api/checkout/webhook", express.raw({type: 'application/json'}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Uploaded product images are immutable because every filename is unique.
+app.use('/storage', express.static(storageRoot, {
+  dotfiles: 'deny',
+  fallthrough: true,
+  immutable: true,
+  maxAge: '1y',
+  setHeaders: res => res.setHeader('X-Content-Type-Options', 'nosniff'),
+}));
 
 // Routes
 app.use("/api/auth", authRoutes);

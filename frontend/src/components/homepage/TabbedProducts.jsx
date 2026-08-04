@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../utils/axiosInstance";
+import { getProductImage, usePlaceholderOnError } from "../../utils/productImages";
 
 const tabs = ["Necklaces", "Rings", "Bracelets"];
 
@@ -106,16 +107,11 @@ const TabbedProducts = () => {
                   onClick={() => navigate(`/product/${product._id}`)}
                 >
                   <img
-                    src={
-                      product.mainImages?.[0]?.url ||
-                      product.images?.[0]?.url ||
-                      product.image ||
-                      product.imageUrl ||
-                      "https://i.postimg.cc/JngCbyYw/Copyof-PMW01NC030.webp"
-                    }
+                    src={getProductImage(product)}
                     alt={product.title || product.name}
                     className="w-full h-[180px] md:h-[260px] object-cover
                     transition-transform duration-700 group-hover:scale-105 cursor-pointer"
+                    onError={usePlaceholderOnError}
                   />
 
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition" />

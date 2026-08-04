@@ -22,6 +22,8 @@ import api from "../../utils/axiosInstance";
 import { useCurrency } from '../../context/CurrencyContext';
 import AddToCart from "../../components/addToCart/AddToCart";
 import BuyNow from "../../components/addToCart/BuyNow";
+import ProductImage from "../../components/ProductImage";
+import { resolveImageUrl } from "../../utils/productImages";
 
 export default function ProductPage() {
   const { id } = useParams();
@@ -52,7 +54,7 @@ export default function ProductPage() {
         
         try {
           res = await api.get(`/api/public/products/${id}`);
-        } catch (err) {
+        } catch {
           res = await api.get(`/api/products/${id}`);
         }
         
@@ -100,13 +102,6 @@ export default function ProductPage() {
     }
   }, [id]);
 
-  const handleVariantSelect = (variant) => {
-    setSelectedVariant(variant);
-    setSelectedColor(variant.color);
-    setSelectedSize(variant.size);
-    setSelectedImage(0);
-  };
-
   const handleColorSelect = (color) => {
     if (!product?.variants) return;
     
@@ -152,7 +147,7 @@ export default function ProductPage() {
           text: `Check out ${product.title}`,
           url: window.location.href,
         });
-      } catch (err) {
+      } catch {
         console.log("Share cancelled");
       }
     } else {
@@ -371,8 +366,8 @@ export default function ProductPage() {
                 >
                   {mainImages.length > 0 ? (
                     <>
-                      <img
-                        src={mainImages[selectedImage]?.url}
+                      <ProductImage
+                        src={mainImages[selectedImage]}
                         alt={product.title}
                         className="w-full h-[500px] object-contain bg-gray-50 transition-transform duration-300"
                       />
@@ -380,7 +375,7 @@ export default function ProductPage() {
                         <div 
                           className="absolute inset-0 pointer-events-none"
                           style={{
-                            backgroundImage: `url(${mainImages[selectedImage]?.url})`,
+                            backgroundImage: `url(${resolveImageUrl(mainImages[selectedImage])})`,
                             backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
                             backgroundSize: '200%',
                             transform: 'scale(1.5)'
@@ -422,14 +417,10 @@ export default function ProductPage() {
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <img
-                        src={img.url}
+                      <ProductImage
+                        src={img}
                         alt={`${product.title} ${idx + 1}`}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=150&h=150&fit=crop&q=80";
-                        }}
                       />
                     </button>
                   ))}
@@ -718,8 +709,8 @@ export default function ProductPage() {
                   >
                     <div className="relative bg-gray-50 rounded-lg overflow-hidden mb-3">
                       <div className="aspect-square relative overflow-hidden">
-                        <img
-                          src={relatedProduct.mainImages?.[0]?.url || "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&h=400&fit=crop&q=80"}
+                        <ProductImage
+                          src={relatedProduct.mainImages?.[0]}
                           alt={relatedProduct.title}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />

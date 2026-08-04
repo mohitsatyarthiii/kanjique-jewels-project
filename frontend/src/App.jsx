@@ -1,37 +1,38 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import SignupPage from "./components/auth/SignupPage";
-import LoginPage from "./components/auth/LoginPage";
-import Dashboard from "./pages/dashboard/ProfilePage";
+import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/protect/ProtectedRoute";
-import HomePage from "./pages/HomePage";
 import Navbar from "./components/navigation/Navbar";
 import AdminProtectedRoute from "./components/protect/AdminProtectedRoute";
-import AdminDashboard from "./pages/dashboard/AdminDashboard";
 import Footer from "./components/navigation/Footer";
-import CategoryPage from "./pages/category/CategoryPage";
-import ProductPage from "./pages/category/ProductPage";
-import OrdersPage from "./pages/dashboard/components/OrdersPage";
-import CartPage from "./pages/dashboard/components/CartPage";
-import TestCheckoutPage from "./pages/payments/PaymentPage";
-import BuyNowCheckout from "./pages/payments/BuyNowCheckout";
-import SuccessPage from "./pages/payments/components/SuccessPage";
-import FailurePage from "./pages/payments/components/FailurePage";
-import ProfilePage from "./pages/dashboard/ProfilePage";
-import UsersOrdersPage from "./pages/dashboard/UsersOrdersPage";
 import ScrollToTop from "./components/ScrollToTop";
-import ProductsPage from "./pages/ProductsPage";
 import { CartNotificationProvider } from "./context/CartNotificationContext";
-import AboutUs from "./pages/AboutPage";
-import ContactUs from "./pages/ContactPage";
-import FAQPage from "./pages/FAQPage";
-import ShippingReturns from "./pages/ShippingPolicyPage";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsConditions from "./pages/TermsAndConditions";
-import AdminProducts from "./pages/dashboard/components/AdminProducts";
-import AdminUsers from "./pages/dashboard/components/AdminUsers";
-import AdminOrders from "./pages/dashboard/components/AdminOrders";
-import AdminLogin from "./pages/AdminLogin";
 import WhatsAppFloat from "./components/WhatsAppFloat";
+
+const SignupPage = lazy(() => import("./components/auth/SignupPage"));
+const LoginPage = lazy(() => import("./components/auth/LoginPage"));
+const HomePage = lazy(() => import("./pages/HomePage"));
+const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
+const CategoryPage = lazy(() => import("./pages/category/CategoryPage"));
+const ProductPage = lazy(() => import("./pages/category/ProductPage"));
+const OrdersPage = lazy(() => import("./pages/dashboard/components/OrdersPage"));
+const CartPage = lazy(() => import("./pages/dashboard/components/CartPage"));
+const TestCheckoutPage = lazy(() => import("./pages/payments/PaymentPage"));
+const BuyNowCheckout = lazy(() => import("./pages/payments/BuyNowCheckout"));
+const SuccessPage = lazy(() => import("./pages/payments/components/SuccessPage"));
+const FailurePage = lazy(() => import("./pages/payments/components/FailurePage"));
+const ProfilePage = lazy(() => import("./pages/dashboard/ProfilePage"));
+const UsersOrdersPage = lazy(() => import("./pages/dashboard/UsersOrdersPage"));
+const ProductsPage = lazy(() => import("./pages/ProductsPage"));
+const AboutUs = lazy(() => import("./pages/AboutPage"));
+const ContactUs = lazy(() => import("./pages/ContactPage"));
+const FAQPage = lazy(() => import("./pages/FAQPage"));
+const ShippingReturns = lazy(() => import("./pages/ShippingPolicyPage"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsConditions = lazy(() => import("./pages/TermsAndConditions"));
+const AdminProducts = lazy(() => import("./pages/dashboard/components/AdminProducts"));
+const AdminUsers = lazy(() => import("./pages/dashboard/components/AdminUsers"));
+const AdminOrders = lazy(() => import("./pages/dashboard/components/AdminOrders"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 
 function App() {
 
@@ -49,6 +50,7 @@ function App() {
           {/* Navbar */}
           {!isAdminRoute && <Navbar />}
 
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-600">Loading…</div>}>
           <Routes>
 
   {/* ---------- PUBLIC / USER ROUTES ---------- */}
@@ -67,6 +69,7 @@ function App() {
   <Route path="/product/:id" element={<ProductPage />} />
   <Route path="/orders" element={<OrdersPage />} />
   <Route path="/products" element={<ProductsPage />} />
+  <Route path="/search" element={<ProductsPage />} />
 
   <Route
     path="/cart"
@@ -124,6 +127,7 @@ function App() {
   <Route path="*" element={<Navigate to="/" />} />
 
 </Routes>
+          </Suspense>
 
           {/* Footer */}
           {!isAdminRoute && <Footer />}

@@ -23,7 +23,7 @@ export function CurrencyProvider({ children }) {
     try { 
       const saved = localStorage.getItem('currency');
       return saved && supported.includes(saved) ? saved : 'INR'; 
-    } catch(e){ 
+    } catch {
       return 'INR'; 
     }
   });
@@ -66,7 +66,9 @@ export function CurrencyProvider({ children }) {
   useEffect(() => {
     try { 
       localStorage.setItem('currency', currency); 
-    } catch(e){}
+    } catch {
+      // Storage may be unavailable in privacy mode; keep the in-memory choice.
+    }
   }, [currency]);
 
   // Convert amount from INR to selected currency

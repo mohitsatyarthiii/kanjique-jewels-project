@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiShoppingBag, FiX, FiChevronRight, FiCheck } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { ShoppingBag, Sparkles } from "lucide-react";
+import ProductImage from "../ProductImage";
 
 const CartNotification = ({ 
   product, 
@@ -61,8 +62,8 @@ const CartNotification = ({
             <div className="p-4">
               <div className="flex gap-4">
                 <div className="w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] flex-shrink-0">
-                  <img
-                    src={product.images?.[0]?.url || "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=500&q=80"}
+                  <ProductImage
+                    src={product.mainImages?.[0] || product.images?.[0]}
                     alt={product.title}
                     className="w-full h-full object-cover"
                   />

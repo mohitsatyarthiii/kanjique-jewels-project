@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../../utils/axiosInstance";
 import { useCurrency } from '../../../context/CurrencyContext';
+import { getProductImage as productImageUrl, usePlaceholderOnError } from "../../../utils/productImages";
 import {
   ShoppingBag,
   Trash2,
@@ -33,13 +34,9 @@ export default function CartPage() {
   const navigate = useNavigate();
 
   // Get currency functions
-  const { format: formatPrice, currency, rates, loading: currencyLoading, convertAmount } = useCurrency();
+  const { format: formatPrice, currency, rates, loading: currencyLoading } = useCurrency();
 
-  useEffect(() => {
-    fetchCart();
-  }, []);
-
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/api/cart");
@@ -54,7 +51,11 @@ export default function CartPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
   const updateQuantity = async (productId, quantity, variantId = null) => {
     if (quantity < 0) return;
@@ -112,7 +113,7 @@ export default function CartPage() {
   };
 
   const getProductImage = (product) => {
-    return product.mainImages?.[0]?.url || "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=500&q=80";
+    return productImageUrl(product);
   };
 
   const getProductPrice = (item) => {
@@ -266,6 +267,7 @@ export default function CartPage() {
                           <Link to={`/product/${item.product?._id}`}>
                             <img
                               src={getProductImage(item.product)}
+                              onError={usePlaceholderOnError}
                               alt={item.product?.title}
                               className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                             />

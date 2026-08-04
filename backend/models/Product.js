@@ -14,7 +14,7 @@ const variantSchema = new mongoose.Schema({
   salePrice: { type: Number }, // variant-specific sale price
   discountPercentage: { type: Number, default: 0 }, // discount for this variant
   sku: { type: String }, // Stock Keeping Unit
-  images: [{ url: String, public_id: String }], // variant-specific images
+  images: [{ url: String, fileName: String }], // variant-specific images
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
@@ -37,7 +37,7 @@ const productSchema = new mongoose.Schema({
   brand: { type: String },
   
   // Main product images (for product listing)
-  mainImages: [{ url: String, public_id: String }],
+  mainImages: [{ url: String, fileName: String }],
   
   // Product variants
   variants: [variantSchema],
@@ -134,7 +134,6 @@ productSchema.pre('save', function(next) {
 });
 
 // Indexes for better query performance
-productSchema.index({ slug: 1 });
 productSchema.index({ category: 1, subCategory: 1 });
 productSchema.index({ gender: 1 });
 productSchema.index({ brand: 1 });

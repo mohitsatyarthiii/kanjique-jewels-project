@@ -18,7 +18,7 @@ router.get("/", requireAuth, async (req, res) => {
     // Payments table se data lao with user and product details
     const payments = await Payment.find()
       .populate("user", "name email") // User details
-      .populate("items.product", "title price images category") // Product details
+      .populate("items.product", "title basePrice baseSalePrice mainImages category")
       .sort({ createdAt: -1 }); // Latest first
 
     console.log(`✅ Found ${payments.length} payments`);
@@ -77,7 +77,7 @@ router.get("/:id", requireAuth, async (req, res) => {
 
     const payment = await Payment.findById(req.params.id)
       .populate("user", "name email phone address")
-      .populate("items.product", "title price images category description");
+      .populate("items.product", "title basePrice baseSalePrice mainImages category description");
 
     if (!payment) {
       return res.status(404).json({ error: "Payment not found" });

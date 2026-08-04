@@ -1,5 +1,4 @@
 import express from "express";
-import multer from "multer";
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { requireAdmin } from "../middleware/adminMiddleware.js";
 import {
@@ -10,6 +9,7 @@ import {
   updateProduct,
   deleteProduct,
   hardDeleteProduct,
+  deleteProductImage,
   updateVariantStock,
   toggleProductStatus,
   toggleFeaturedStatus,
@@ -27,53 +27,11 @@ import {
   getRelatedProducts,
   getAvailableFilters
 } from "../controllers/adminProductController.js";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import cloudinary from "../config/cloudinaryConfig.js";
+import { uploadProductImages } from "../middleware/productImageUpload.js";
 import { Product } from "../models/Product.js";
 import mongoose from "mongoose";
 
 const router = express.Router();
-
-// Multer + Cloudinary setup
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "products",
-    format: async (req, file) => {
-      const ext = file.originalname.split('.').pop().toLowerCase();
-      return ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'webp';
-    },
-    public_id: (req, file) => {
-      const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(7);
-      const name = file.originalname.split('.')[0].replace(/\s+/g, '-').toLowerCase();
-      return `${timestamp}-${random}-${name}`;
-    },
-    transformation: [
-      { width: 1200, height: 1200, crop: "limit", quality: "auto" },
-      { fetch_format: "auto" }
-    ]
-  },
-});
-
-// File filter for images only
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed!'), false);
-  }
-};
-
-const upload = multer({ 
-  storage, 
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 20 // Maximum 20 files total
-  }
-});
 
 // ======================== ADMIN ROUTES (Protected) ========================
 
@@ -82,14 +40,7 @@ const upload = multer({
 
 // Create product with images
 router.post("/products", requireAuth, requireAdmin,
-  upload.fields([
-    { name: 'mainImages', maxCount: 5 },
-    { name: 'variantImages[0]', maxCount: 3 },
-    { name: 'variantImages[1]', maxCount: 3 },
-    { name: 'variantImages[2]', maxCount: 3 },
-    { name: 'variantImages[3]', maxCount: 3 },
-    { name: 'variantImages[4]', maxCount: 3 }
-  ]), 
+  uploadProductImages,
   createProduct
 );
 
@@ -101,14 +52,7 @@ router.get("/products/:id", requireAuth, requireAdmin, getAdminProductById);
 
 // Update product with images
 router.put("/products/:id", requireAuth, requireAdmin,
-  upload.fields([
-    { name: 'mainImages', maxCount: 5 },
-    { name: 'variantImages[0]', maxCount: 3 },
-    { name: 'variantImages[1]', maxCount: 3 },
-    { name: 'variantImages[2]', maxCount: 3 },
-    { name: 'variantImages[3]', maxCount: 3 },
-    { name: 'variantImages[4]', maxCount: 3 }
-  ]), 
+  uploadProductImages,
   updateProduct
 );
 
@@ -126,6 +70,9 @@ router.delete("/products/:id", requireAuth, requireAdmin, deleteProduct);
 
 // Hard delete product (permanent)
 router.delete("/products/:id/hard", requireAuth, requireAdmin, hardDeleteProduct);
+
+// Delete one main or variant image by its subdocument ID.
+router.delete("/products/:id/images/:imageId", requireAuth, requireAdmin, deleteProductImage);
 
 // Bulk update products
 router.patch("/products/bulk/update", requireAuth, requireAdmin, bulkUpdateProducts);

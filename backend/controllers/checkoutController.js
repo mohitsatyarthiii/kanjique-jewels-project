@@ -1,4 +1,5 @@
 import Razorpay from "razorpay";
+import dotenv from "dotenv";
 import crypto from "crypto";
 import { Cart } from "../models/Cart.js";
 import { Payment } from "../models/Payment.js";
@@ -6,20 +7,36 @@ import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
 import { getRates, convertAmount } from '../utils/exchangeRates.js';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+dotenv.config({ path: new URL("../.env", import.meta.url) });
 
-// Validate environment
-if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-  console.error("❌ Razorpay credentials missing!");
-}
+let razorpayClient;
+const getRazorpayClient = () => {
+  const keyId = process.env.RAZORPAY_KEY_ID?.trim();
+  const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
+  if (!keyId || !keySecret) {
+    const error = new Error("Payment gateway credentials are not configured");
+    error.code = "PAYMENT_CONFIGURATION_ERROR";
+    throw error;
+  }
+  if (!razorpayClient) razorpayClient = new Razorpay({ key_id: keyId, key_secret: keySecret });
+  return razorpayClient;
+};
 
-// Log Razorpay mode on startup
-const keyType = process.env.RAZORPAY_KEY_ID?.startsWith('rzp_live_') ? 'LIVE' : 'TEST';
-console.log(`✅ Razorpay initialized in ${keyType} mode`);
-console.log(`📍 Key ID: ${process.env.RAZORPAY_KEY_ID?.substring(0, 15)}...`);
+const getRazorpaySecret = () => {
+  const secret = process.env.RAZORPAY_KEY_SECRET?.trim();
+  if (!secret) {
+    const error = new Error("Payment gateway credentials are not configured");
+    error.code = "PAYMENT_CONFIGURATION_ERROR";
+    throw error;
+  }
+  return secret;
+};
+
+const handleConfigurationError = (error, res) => {
+  if (error.code !== "PAYMENT_CONFIGURATION_ERROR") return false;
+  res.status(503).json({ success: false, error: error.message });
+  return true;
+};
 
 // Generate unique receipt ID
 const generateReceiptId = () => {
@@ -151,7 +168,7 @@ export const createOrder = async (req, res) => {
     });
 
     // Create Razorpay order
-    const razorpayOrder = await razorpay.orders.create(options);
+    const razorpayOrder = await getRazorpayClient().orders.create(options);
 
     // Save payment record in DB
     const payment = new Payment({
@@ -199,6 +216,7 @@ export const createOrder = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Create order error:", err);
+    if (handleConfigurationError(err, res)) return;
     
     // Handle specific Razorpay errors
     if (err.error && err.error.description) {
@@ -246,7 +264,7 @@ export const verifyPayment = async (req, res) => {
 
     // Verify signature
     const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .createHmac("sha256", getRazorpaySecret())
       .update(razorpay_order_id + "|" + razorpay_payment_id)
       .digest("hex");
 
@@ -335,6 +353,7 @@ export const verifyPayment = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Verify payment error:", err);
+    if (handleConfigurationError(err, res)) return;
     res.status(500).json({
       success: false,
       error: "Failed to verify payment",
@@ -450,7 +469,7 @@ export const buyNow = async (req, res) => {
       },
     };
 
-    const razorpayOrder = await razorpay.orders.create(options);
+    const razorpayOrder = await getRazorpayClient().orders.create(options);
 
     // Save payment record
     const payment = new Payment({
@@ -495,6 +514,7 @@ export const buyNow = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Buy now error:", err);
+    if (handleConfigurationError(err, res)) return;
 
     if (err.error && err.error.description) {
       return res.status(400).json({

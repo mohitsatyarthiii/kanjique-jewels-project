@@ -79,7 +79,6 @@ orderSchema.pre('save', async function(next) {
 });
 
 // Indexes for better query performance
-orderSchema.index({ orderNumber: 1 });
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
 

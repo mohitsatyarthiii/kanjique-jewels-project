@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../../../utils/axiosInstance";
 import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import ProductImage from "../../../components/ProductImage";
 
 export default function OrdersPage() {
   const { user, token } = useAuth();
@@ -45,9 +46,9 @@ export default function OrdersPage() {
               </h2>
               {order.items.map((item) => (
                 <div key={item._id} className="flex gap-4 items-center border-b pb-2 mb-2">
-                  <img
-                    src={item.product.images[0].url}
-                    alt={item.product.title}
+                  <ProductImage
+                    src={item.product?.mainImages?.[0] || item.product?.images?.[0]}
+                    alt={item.product?.title}
                     className="w-20 h-20 object-cover rounded"
                   />
                   <div>

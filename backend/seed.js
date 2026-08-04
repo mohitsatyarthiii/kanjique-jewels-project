@@ -439,11 +439,11 @@ const seedProducts = async () => {
           title: productData.title,
           slug: slug,
           description: `${productData.title} - Premium quality ${categoryData.subCategory.toLowerCase()} from ${productData.brand}. Exquisite craftsmanship with attention to detail. Perfect for special occasions, weddings, festivals, or daily wear.`,
-          price: productData.price,
+          basePrice: productData.price,
           category: categoryData.category,
           subCategory: categoryData.subCategory,
           brand: productData.brand,
-          images: [{ url: productData.image, public_id: `kanjique_${slug}` }],
+          mainImages: [],
           inStock: true,
           createdBy: new mongoose.Types.ObjectId() // Dummy user ID
         });

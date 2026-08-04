@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../utils/axiosInstance";
+import ProductImage from "../../components/ProductImage";
 import { useAuth } from "../../context/AuthContext"; // ✅ Auth context import karo
 import { 
   FiPackage, 
@@ -45,6 +46,8 @@ export default function UsersOrdersPage() {
     } else {
       setLoading(false);
     }
+    // fetchOrders is deliberately triggered by authentication changes only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchOrders = async () => {
@@ -77,7 +80,7 @@ export default function UsersOrdersPage() {
       );
       
       // Demo data agar API fail ho (remove in production)
-      if (process.env.NODE_ENV === "development") {
+      if (import.meta.env.DEV) {
         setOrders(getDemoOrders());
       }
     } finally {
@@ -218,7 +221,7 @@ export default function UsersOrdersPage() {
             product: {
               title: "Diamond Solitaire Ring",
               price: 2500,
-              images: ["https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&q=80"]
+              images: []
             },
             quantity: 1,
             price: 2500
@@ -239,7 +242,7 @@ export default function UsersOrdersPage() {
             product: {
               title: "Gold Chain Necklace",
               price: 1500,
-              images: ["https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400&q=80"]
+              images: []
             },
             quantity: 1,
             price: 1500
@@ -552,20 +555,11 @@ export default function UsersOrdersPage() {
                                 return (
                                   <div key={item._id || idx} className="flex gap-4 p-4 bg-gradient-to-r from-[#fef8e9] to-white rounded-xl border border-[#f4e6c3]">
                                     <div className="w-20 h-20 rounded-lg overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] flex-shrink-0">
-                                      {product.images?.[0] ? (
-                                        <img
-                                          src={product.images[0]}
-                                          alt={product.title}
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => {
-                                            e.target.src = "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=200&q=80";
-                                          }}
-                                        />
-                                      ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-[#b2965a] to-[#d4b97d] flex items-center justify-center">
-                                          <Package className="w-8 h-8 text-white" />
-                                        </div>
-                                      )}
+                                      <ProductImage
+                                        src={product.mainImages?.[0] || product.images?.[0]}
+                                        alt={product.title}
+                                        className="w-full h-full object-cover"
+                                      />
                                     </div>
                                     
                                     <div className="flex-1 min-w-0">

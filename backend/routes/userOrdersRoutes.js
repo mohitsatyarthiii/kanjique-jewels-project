@@ -12,7 +12,7 @@ router.get("/", requireAuth, async (req, res) => {
     
     // Payments table se data lao (yeh hi orders hai ab)
     const payments = await Payment.find({ user: userId })
-      .populate("items.product", "title price images category description")
+      .populate("items.product", "title basePrice baseSalePrice mainImages category description")
       .sort({ createdAt: -1 }); // Latest first
     
     console.log(`✅ Found ${payments.length} payments for user`);
@@ -37,8 +37,8 @@ router.get("/", requireAuth, async (req, res) => {
           product: item.product || {
             _id: item.product,
             title: "Product",
-            price: item.price,
-            images: []
+            basePrice: item.price,
+            mainImages: []
           },
           quantity: item.quantity,
           price: item.price,
@@ -92,7 +92,7 @@ router.get("/:id", requireAuth, async (req, res) => {
     const payment = await Payment.findOne({
       _id: orderId,
       user: userId
-    }).populate("items.product", "title price images category description");
+    }).populate("items.product", "title basePrice baseSalePrice mainImages category description");
 
     if (!payment) {
       return res.status(404).json({

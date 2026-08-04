@@ -46,7 +46,7 @@ const AdminDashboard = () => {
         if (statsRes.data.success && statsRes.data.stats) {
           setStats(statsRes.data.stats);
         }
-      } catch (statsErr) {
+      } catch {
         console.log('Stats endpoint not available, using placeholders');
       }
       

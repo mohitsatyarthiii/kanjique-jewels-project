@@ -21,6 +21,7 @@ import {
   FiChevronDown
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import { getProductImage as productImageUrl, usePlaceholderOnError } from "../utils/productImages";
 
 export default function ProductsPage() {
   const location = useLocation();
@@ -33,7 +34,6 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
   const [priceFilter, setPriceFilter] = useState([0, 500000]);
   const [selectedColors, setSelectedColors] = useState([]);
@@ -276,10 +276,7 @@ export default function ProductsPage() {
 
   // Get product image
   const getProductImage = (product) => {
-    if (product.mainImages && product.mainImages.length > 0 && product.mainImages[0].url) {
-      return product.mainImages[0].url;
-    }
-    return "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
+    return productImageUrl(product);
   };
 
   // Get stock status
@@ -398,10 +395,7 @@ export default function ProductsPage() {
                 className="w-full h-full object-cover"
                 animate={isHovered ? { scale: 1.05 } : { scale: 1 }}
                 transition={{ duration: 0.5 }}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
-                }}
+                onError={usePlaceholderOnError}
               />
             </Link>
             
@@ -519,10 +513,7 @@ export default function ProductsPage() {
                   src={getProductImage(product)}
                   alt={product.title || "Product"}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&q=80";
-                  }}
+                  onError={usePlaceholderOnError}
                 />
               </Link>
               

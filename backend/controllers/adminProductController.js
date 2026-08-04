@@ -1,11 +1,85 @@
 import { Product } from "../models/Product.js";
-import cloudinary from "../config/cloudinaryConfig.js";
 import mongoose from "mongoose";
+import {
+  allProductImages,
+  cleanupFiles,
+  imageFileName,
+  promoteStagedFile,
+  purgeQuarantined,
+  quarantineImages,
+  restoreQuarantined,
+} from "../services/imageStorage.js";
+
+const storedImage = promoted => ({ url: promoted.url, fileName: promoted.fileName });
+const parseJsonField = (value, fallback = []) => {
+  if (value === undefined || value === null || value === "") return fallback;
+  return typeof value === "string" ? JSON.parse(value) : value;
+};
+const escapeRegExp = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const boundedInteger = (value, fallback, max) => Math.min(max, Math.max(1, Number.parseInt(value, 10) || fallback));
+const storageError = error => error?.code === "ENOSPC"
+  ? { status: 507, message: "Image storage is full" }
+  : error?.code === "EACCES" || error?.code === "EPERM"
+    ? { status: 500, message: "Image storage is not writable" }
+    : null;
+
+const promoteProductUploads = async req => {
+  const promoted = [];
+  const mainImages = [];
+  const variantImages = new Map();
+  try {
+    for (const file of req.files?.mainImages || []) {
+      const result = await promoteStagedFile(file);
+      promoted.push(result);
+      mainImages.push(storedImage(result));
+    }
+    for (const [field, files] of Object.entries(req.files || {})) {
+      const match = /^variantImages\[(\d+)\]$/.exec(field);
+      if (!match) continue;
+      const images = [];
+      for (const file of files) {
+        const result = await promoteStagedFile(file);
+        promoted.push(result);
+        images.push(storedImage(result));
+      }
+      variantImages.set(Number(match[1]), images);
+    }
+    return { promoted, mainImages, variantImages };
+  } catch (error) {
+    await cleanupFiles(promoted);
+    throw error;
+  }
+};
+
+const imageKey = image => image?._id?.toString() || imageFileName(image) || image?.url;
+const selectExistingImages = (requested, existing) => {
+  const byKey = new Map(existing.map(image => [imageKey(image), image]));
+  return requested.map(item => byKey.get(typeof item === "string" ? item : imageKey(item))).filter(Boolean);
+};
+
+const orderMainImages = (order, existing, added) => {
+  if (!Array.isArray(order)) return [...existing, ...added];
+  const existingByKey = new Map(existing.map(image => [String(imageKey(image)), image]));
+  const selected = [];
+  const used = new Set();
+  for (const token of order) {
+    const value = String(token);
+    const image = value.startsWith("new:")
+      ? added[Number.parseInt(value.slice(4), 10)]
+      : existingByKey.get(value.replace(/^existing:/, ""));
+    if (image && !used.has(image)) {
+      selected.push(image);
+      used.add(image);
+    }
+  }
+  return [...selected, ...[...existing, ...added].filter(image => !used.has(image))];
+};
 
 // ======================== ADMIN ONLY FUNCTIONS ========================
 
 // Create new product with variants
 export const createProduct = async (req, res) => {
+  let promoted = [];
   try {
     const { 
       title, 
@@ -78,27 +152,12 @@ export const createProduct = async (req, res) => {
       }
     }
 
-    // Handle main images
-    let mainImages = [];
-    if (req.files && req.files.mainImages) {
-      mainImages = req.files.mainImages.map(file => ({
-        url: file.path,
-        public_id: file.filename,
-      }));
-    }
-
-    // Handle variant images
-    if (parsedVariants.length > 0 && req.files) {
-      for (let i = 0; i < parsedVariants.length; i++) {
-        const variantImageFiles = req.files[`variantImages[${i}]`];
-        if (variantImageFiles && variantImageFiles.length > 0) {
-          parsedVariants[i].images = variantImageFiles.map(file => ({
-            url: file.path,
-            public_id: file.filename,
-          }));
-        }
-      }
-    }
+    const uploadResult = await promoteProductUploads(req);
+    promoted = uploadResult.promoted;
+    const mainImages = orderMainImages(parseJsonField(req.body.mainImageOrder, null), [], uploadResult.mainImages);
+    uploadResult.variantImages.forEach((images, index) => {
+      if (parsedVariants[index]) parsedVariants[index].images = images;
+    });
 
     // Generate slug
     const baseSlug = title.toLowerCase()
@@ -149,10 +208,12 @@ export const createProduct = async (req, res) => {
       product 
     });
   } catch (err) {
+    await cleanupFiles(promoted);
     console.error("Create product error:", err);
-    res.status(500).json({ 
+    const fileError = storageError(err);
+    res.status(fileError?.status || err.status || 500).json({
       success: false, 
-      error: "Server error creating product",
+      error: fileError?.message || "Server error creating product",
       details: err.message 
     });
   }
@@ -193,24 +254,25 @@ export const getAdminProducts = async (req, res) => {
     if (inStock !== undefined) filter.inStock = inStock === 'true';
     if (isFeatured !== undefined) filter.isFeatured = isFeatured === 'true';
     
-    // Price filter
+    const clauses = [];
+    // Price range overlap
     if (minPrice || maxPrice) {
-      filter.$or = [
-        { minPrice: { $gte: parseFloat(minPrice || 0) } },
-        { maxPrice: { $lte: parseFloat(maxPrice || 999999) } }
-      ];
+      if (maxPrice) clauses.push({ minPrice: { $lte: Number(maxPrice) } });
+      if (minPrice) clauses.push({ maxPrice: { $gte: Number(minPrice) } });
     }
     
     // Search filter
     if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { brand: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } },
-        { subCategory: { $regex: search, $options: 'i' } }
-      ];
+      const pattern = escapeRegExp(search.trim());
+      clauses.push({ $or: [
+        { title: { $regex: pattern, $options: 'i' } },
+        { description: { $regex: pattern, $options: 'i' } },
+        { brand: { $regex: pattern, $options: 'i' } },
+        { category: { $regex: pattern, $options: 'i' } },
+        { subCategory: { $regex: pattern, $options: 'i' } }
+      ] });
     }
+    if (clauses.length) filter.$and = clauses;
     
     // Build sort
     const sort = {};
@@ -292,11 +354,14 @@ export const getAdminProductById = async (req, res) => {
 
 // Update product
 export const updateProduct = async (req, res) => {
+  let promoted = [];
+  let quarantined = [];
   try {
     const { id } = req.params;
-    const updates = req.body;
-    
-    // Get existing product
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, error: "Invalid product ID" });
+    }
+
     const existingProduct = await Product.findById(id);
     if (!existingProduct) {
       return res.status(404).json({ 
@@ -305,9 +370,65 @@ export const updateProduct = async (req, res) => {
       });
     }
     
-    // Handle slug update
-    if (updates.title && updates.title !== existingProduct.title) {
-      const baseSlug = updates.title.toLowerCase()
+    const body = req.body;
+    const nextCategory = body.category || existingProduct.category;
+    let variants = body.variants === undefined ? existingProduct.variants.map(v => v.toObject()) : parseJsonField(body.variants);
+    if (!Array.isArray(variants)) return res.status(400).json({ success: false, error: "Variants must be an array" });
+
+    for (const variant of variants) {
+      if (!variant.color?.name || !variant.color?.hexCode) {
+        return res.status(400).json({ success: false, error: "Each variant must have color name and hex code" });
+      }
+      if ((nextCategory === "Rings" || nextCategory === "Bangles") && !variant.size) {
+        return res.status(400).json({ success: false, error: "Each variant must have a size for Rings/Bangles" });
+      }
+      variant.price = Number(variant.price || body.basePrice || existingProduct.basePrice);
+      variant.salePrice = variant.salePrice === "" || variant.salePrice == null ? undefined : Number(variant.salePrice);
+      variant.discountPercentage = Number(variant.discountPercentage || 0);
+      variant.stockQuantity = Number.parseInt(variant.stockQuantity, 10) || 0;
+    }
+
+    let retainedMainImages = existingProduct.mainImages;
+    if (body.existingMainImages !== undefined) {
+      const requested = parseJsonField(body.existingMainImages);
+      if (!Array.isArray(requested)) return res.status(400).json({ success: false, error: "Existing images must be an array" });
+      retainedMainImages = selectExistingImages(requested, existingProduct.mainImages);
+    } else if (body.replaceImages === "true") {
+      retainedMainImages = [];
+    }
+
+    const uploadResult = await promoteProductUploads(req);
+    promoted = uploadResult.promoted;
+    if (retainedMainImages.length + uploadResult.mainImages.length > 5) {
+      throw Object.assign(new Error("A product can have at most 5 main images"), { status: 400 });
+    }
+
+    variants = variants.map((variant, index) => {
+      const previous = variant._id
+        ? existingProduct.variants.find(item => item._id.toString() === variant._id.toString())
+        : existingProduct.variants[index];
+      const retained = previous ? selectExistingImages(variant.images || [], previous.images || []) : [];
+      const added = uploadResult.variantImages.get(index) || [];
+      if (retained.length + added.length > 3) {
+        throw Object.assign(new Error("A variant can have at most 3 images"), { status: 400 });
+      }
+      return { ...variant, images: [...retained, ...added] };
+    });
+
+    const nextMainImages = orderMainImages(
+      parseJsonField(body.mainImageOrder, null),
+      retainedMainImages,
+      uploadResult.mainImages,
+    );
+    const retainedKeys = new Set([
+      ...nextMainImages,
+      ...variants.flatMap(variant => variant.images || []),
+    ].map(imageKey));
+    const removedImages = allProductImages(existingProduct).filter(image => !retainedKeys.has(imageKey(image)));
+    quarantined = await quarantineImages(removedImages);
+
+    if (body.title && body.title !== existingProduct.title) {
+      const baseSlug = body.title.toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
@@ -319,139 +440,49 @@ export const updateProduct = async (req, res) => {
         slug = `${baseSlug}-${counter}`;
         counter++;
       }
-      updates.slug = slug;
+      existingProduct.slug = slug;
     }
-    
-    // Parse numeric fields
-    if (updates.basePrice) updates.basePrice = parseFloat(updates.basePrice);
-    if (updates.baseSalePrice) updates.baseSalePrice = parseFloat(updates.baseSalePrice);
-    if (updates.overallDiscountPercentage) updates.overallDiscountPercentage = parseFloat(updates.overallDiscountPercentage);
-    if (updates.totalStock !== undefined) updates.totalStock = parseInt(updates.totalStock);
-    
-    // Parse availableColors if provided as string
-    if (updates.availableColors) {
-      try {
-        updates.availableColors = typeof updates.availableColors === 'string' 
-          ? JSON.parse(updates.availableColors) 
-          : updates.availableColors;
-      } catch (err) {
-        updates.availableColors = [];
-      }
-    }
-    
-    // Parse variants if provided
-    if (updates.variants) {
-      try {
-        updates.variants = typeof updates.variants === 'string' 
-          ? JSON.parse(updates.variants) 
-          : updates.variants;
-        
-        // Validate variants
-        for (const variant of updates.variants) {
-          if (!variant.color || !variant.color.name || !variant.color.hexCode) {
-            return res.status(400).json({ 
-              success: false,
-              error: "Each variant must have color name and hex code" 
-            });
-          }
-          // Require size only for Rings or Bangles
-          if ((updates.category === 'Rings' || updates.category === 'Bangles' || existingProduct.category === 'Rings' || existingProduct.category === 'Bangles') && !variant.size) {
-            return res.status(400).json({ 
-              success: false,
-              error: "Each variant must have a size for Rings/Bangles" 
-            });
-          }
-          if (!variant.price && !updates.basePrice) {
-            return res.status(400).json({ 
-              success: false,
-              error: "Variant price or base price is required" 
-            });
-          }
-        }
-        
-        // Convert numeric fields
-        updates.variants = updates.variants.map(variant => ({
-          ...variant,
-          price: variant.price ? parseFloat(variant.price) : parseFloat(updates.basePrice || existingProduct.basePrice),
-          salePrice: variant.salePrice ? parseFloat(variant.salePrice) : undefined,
-          discountPercentage: variant.discountPercentage ? parseFloat(variant.discountPercentage) : 0,
-          stockQuantity: parseInt(variant.stockQuantity) || 0,
-        }));
-      } catch (err) {
-        return res.status(400).json({ 
-          success: false,
-          error: "Invalid variants format" 
-        });
-      }
-    }
-    
-    // Handle new main images
-    if (req.files && req.files.mainImages) {
-      const newImages = req.files.mainImages.map(file => ({ 
-        url: file.path, 
-        public_id: file.filename 
-      }));
-      
-      // Delete old images if needed
-      if (updates.replaceImages === 'true' && existingProduct.mainImages.length > 0) {
-        for (let img of existingProduct.mainImages) {
-          await cloudinary.uploader.destroy(img.public_id);
-        }
-        updates.mainImages = newImages;
-      } else {
-        updates.mainImages = [...existingProduct.mainImages, ...newImages];
-      }
-    }
-    
-    // Handle variant images
-    if (updates.variants && req.files) {
-      for (let i = 0; i < updates.variants.length; i++) {
-        const variantImageFiles = req.files[`variantImages[${i}]`];
-        if (variantImageFiles && variantImageFiles.length > 0) {
-          // Delete old variant images if they exist
-          if (existingProduct.variants[i] && existingProduct.variants[i].images) {
-            for (let img of existingProduct.variants[i].images) {
-              await cloudinary.uploader.destroy(img.public_id);
-            }
-          }
-          
-          updates.variants[i].images = variantImageFiles.map(file => ({
-            url: file.path,
-            public_id: file.filename,
-          }));
-        }
-      }
-    }
-    
-    // Add updatedBy field
-    updates.updatedBy = req.user._id;
-    
-    const product = await Product.findByIdAndUpdate(
-      id, 
-      updates, 
-      { new: true, runValidators: true }
-    ).populate('createdBy', 'name email')
-     .populate('updatedBy', 'name email');
+
+    const scalarFields = ["title", "description", "shortDescription", "category", "subCategory", "gender", "brand", "metaTitle", "metaDescription"];
+    for (const field of scalarFields) if (body[field] !== undefined) existingProduct[field] = body[field];
+    if (body.basePrice !== undefined) existingProduct.basePrice = Number(body.basePrice);
+    if (body.baseSalePrice !== undefined) existingProduct.baseSalePrice = body.baseSalePrice === "" ? undefined : Number(body.baseSalePrice);
+    if (body.overallDiscountPercentage !== undefined) existingProduct.overallDiscountPercentage = Number(body.overallDiscountPercentage || 0);
+    if (body.totalStock !== undefined) existingProduct.totalStock = Number.parseInt(body.totalStock, 10) || 0;
+    if (body.availableColors !== undefined) existingProduct.availableColors = parseJsonField(body.availableColors);
+    if (body.isFeatured !== undefined) existingProduct.isFeatured = body.isFeatured === true || body.isFeatured === "true";
+    if (body.isActive !== undefined) existingProduct.isActive = body.isActive === true || body.isActive === "true";
+    existingProduct.mainImages = nextMainImages;
+    existingProduct.variants = variants;
+    existingProduct.updatedBy = req.user._id;
+
+    await existingProduct.save();
+    await purgeQuarantined(quarantined).catch(error => console.error("Image trash cleanup error:", error));
     
     res.json({
       success: true,
       message: "Product updated successfully",
-      product
+      product: existingProduct
     });
   } catch (err) {
+    await Promise.all([cleanupFiles(promoted), restoreQuarantined(quarantined)]);
     console.error("Update product error:", err);
-    res.status(500).json({ 
+    const fileError = storageError(err);
+    res.status(fileError?.status || err.status || (err instanceof SyntaxError ? 400 : 500)).json({
       success: false, 
-      error: "Server error updating product" 
+      error: fileError?.message || (err.status || err instanceof SyntaxError ? err.message : "Server error updating product")
     });
   }
 };
 
-// Delete product (soft delete)
+// Delete product and its stored images.
 export const deleteProduct = async (req, res) => {
+  let quarantined = [];
   try {
     const { id } = req.params;
-    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, error: "Invalid product ID" });
+    }
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ 
@@ -460,67 +491,62 @@ export const deleteProduct = async (req, res) => {
       });
     }
     
-    // Soft delete by setting isActive to false
-    product.isActive = false;
-    product.updatedBy = req.user._id;
-    await product.save();
+    quarantined = await quarantineImages(allProductImages(product));
+    await product.deleteOne();
+    await purgeQuarantined(quarantined).catch(error => console.error("Image trash cleanup error:", error));
     
     res.json({
       success: true,
-      message: "Product deleted successfully"
+      message: "Product and its images deleted successfully"
     });
   } catch (err) {
+    await restoreQuarantined(quarantined);
     console.error("Delete product error:", err);
-    res.status(500).json({ 
+    const fileError = storageError(err);
+    res.status(fileError?.status || 500).json({
       success: false, 
-      error: "Server error deleting product" 
+      error: fileError?.message || "Server error deleting product"
     });
   }
 };
 
-// Hard delete product (with image cleanup)
+// Backward-compatible permanent-delete endpoint.
 export const hardDeleteProduct = async (req, res) => {
+  return deleteProduct(req, res);
+};
+
+export const deleteProductImage = async (req, res) => {
+  let quarantined = [];
   try {
-    const { id } = req.params;
-    
+    const { id, imageId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(imageId)) {
+      return res.status(400).json({ success: false, error: "Invalid product or image ID" });
+    }
     const product = await Product.findById(id);
-    if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        error: "Product not found" 
-      });
-    }
-    
-    // Delete all images from cloudinary
-    if (product.mainImages && product.mainImages.length > 0) {
-      for (let img of product.mainImages) {
-        await cloudinary.uploader.destroy(img.public_id);
-      }
-    }
-    
-    // Delete variant images
-    if (product.variants && product.variants.length > 0) {
-      for (let variant of product.variants) {
-        if (variant.images && variant.images.length > 0) {
-          for (let img of variant.images) {
-            await cloudinary.uploader.destroy(img.public_id);
-          }
+    if (!product) return res.status(404).json({ success: false, error: "Product not found" });
+
+    let image = product.mainImages.id(imageId);
+    if (image) product.mainImages.pull(imageId);
+    if (!image) {
+      for (const variant of product.variants) {
+        image = variant.images.id(imageId);
+        if (image) {
+          variant.images.pull(imageId);
+          break;
         }
       }
     }
-    
-    await product.deleteOne();
-    
-    res.json({
-      success: true,
-      message: "Product permanently deleted"
-    });
+    if (!image) return res.status(404).json({ success: false, error: "Image not found" });
+
+    quarantined = await quarantineImages([image]);
+    product.updatedBy = req.user._id;
+    await product.save();
+    await purgeQuarantined(quarantined).catch(error => console.error("Image trash cleanup error:", error));
+    res.json({ success: true, message: "Image deleted successfully", product });
   } catch (err) {
-    console.error("Hard delete product error:", err);
-    res.status(500).json({ 
-      success: false, 
-      error: "Server error deleting product" 
-    });
+    await restoreQuarantined(quarantined);
+    console.error("Delete product image error:", err);
+    res.status(500).json({ success: false, error: "Server error deleting image" });
   }
 };
 
@@ -653,10 +679,15 @@ export const bulkUpdateProducts = async (req, res) => {
       });
     }
     
+    const allowedFields = ["isActive", "isFeatured", "category", "subCategory", "brand", "gender"];
+    const safeUpdates = Object.fromEntries(Object.entries(updates || {}).filter(([key]) => allowedFields.includes(key)));
+    if (!Object.keys(safeUpdates).length) {
+      return res.status(400).json({ success: false, error: "No supported update fields were provided" });
+    }
     const result = await Product.updateMany(
       { _id: { $in: ids } },
       { 
-        ...updates,
+        ...safeUpdates,
         updatedBy: req.user._id 
       }
     );
@@ -675,8 +706,9 @@ export const bulkUpdateProducts = async (req, res) => {
   }
 };
 
-// Bulk delete products (soft delete)
+// Permanently delete products and all associated files.
 export const bulkDeleteProducts = async (req, res) => {
+  let quarantined = [];
   try {
     const { ids } = req.body;
     
@@ -687,20 +719,21 @@ export const bulkDeleteProducts = async (req, res) => {
       });
     }
     
-    const result = await Product.updateMany(
-      { _id: { $in: ids } },
-      { 
-        isActive: false,
-        updatedBy: req.user._id 
-      }
-    );
+    if (ids.some(id => !mongoose.Types.ObjectId.isValid(id))) {
+      return res.status(400).json({ success: false, error: "One or more product IDs are invalid" });
+    }
+    const products = await Product.find({ _id: { $in: ids } });
+    quarantined = await quarantineImages(products.flatMap(allProductImages));
+    const result = await Product.deleteMany({ _id: { $in: ids } });
+    await purgeQuarantined(quarantined).catch(error => console.error("Image trash cleanup error:", error));
     
     res.json({
       success: true,
-      message: `${result.modifiedCount} products deleted`,
-      modifiedCount: result.modifiedCount
+      message: `${result.deletedCount} products deleted`,
+      deletedCount: result.deletedCount
     });
   } catch (err) {
+    await restoreQuarantined(quarantined);
     console.error("Bulk delete error:", err);
     res.status(500).json({
       success: false,
@@ -865,12 +898,12 @@ export const getFrontendProducts = async (req, res) => {
     if (brand) filter.brand = brand;
     if (isFeatured !== undefined) filter.isFeatured = isFeatured === 'true';
     
-    // Price filter
+    const clauses = [];
+
+    // Include products whose price range overlaps the requested range.
     if (minPrice || maxPrice) {
-      filter.$or = [
-        { minPrice: { $gte: parseFloat(minPrice || 0) } },
-        { maxPrice: { $lte: parseFloat(maxPrice || 999999) } }
-      ];
+      if (maxPrice) clauses.push({ minPrice: { $lte: Number(maxPrice) } });
+      if (minPrice) clauses.push({ maxPrice: { $gte: Number(minPrice) } });
     }
     
     // Color filter
@@ -885,14 +918,16 @@ export const getFrontendProducts = async (req, res) => {
     
     // Search filter
     if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { brand: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } },
-        { subCategory: { $regex: search, $options: 'i' } }
-      ];
+      const pattern = escapeRegExp(search.trim());
+      clauses.push({ $or: [
+        { title: { $regex: pattern, $options: 'i' } },
+        { description: { $regex: pattern, $options: 'i' } },
+        { brand: { $regex: pattern, $options: 'i' } },
+        { category: { $regex: pattern, $options: 'i' } },
+        { subCategory: { $regex: pattern, $options: 'i' } }
+      ] });
     }
+    if (clauses.length) filter.$and = clauses;
     
     // Build sort
     const sort = {};
@@ -909,20 +944,22 @@ export const getFrontendProducts = async (req, res) => {
     Object.assign(sort, sortOptions[sortKey] || sortOptions['newest']);
     
     // Execute query with pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const safePage = boundedInteger(page, 1, 1000000);
+    const safeLimit = boundedInteger(limit, 20, 100);
+    const skip = (safePage - 1) * safeLimit;
     
     const [products, total] = await Promise.all([
       Product.find(filter)
         .select('title slug basePrice baseSalePrice mainImages brand category subCategory overallDiscountPercentage minPrice maxPrice availableColors availableSizes totalStock')
         .sort(sort)
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(safeLimit)
         .lean(),
       Product.countDocuments(filter)
     ]);
     
     // Calculate total pages and add display prices
-    const totalPages = Math.ceil(total / parseInt(limit));
+    const totalPages = Math.ceil(total / safeLimit);
     const productsWithDisplayPrice = products.map(product => ({
       ...product,
       displayPrice: product.baseSalePrice || product.basePrice,
@@ -933,11 +970,11 @@ export const getFrontendProducts = async (req, res) => {
       success: true,
       products: productsWithDisplayPrice,
       pagination: {
-        currentPage: parseInt(page),
+        currentPage: safePage,
         totalPages,
         totalProducts: total,
-        hasNextPage: parseInt(page) < totalPages,
-        hasPrevPage: parseInt(page) > 1
+        hasNextPage: safePage < totalPages,
+        hasPrevPage: safePage > 1
       }
     });
   } catch (err) {
@@ -965,11 +1002,11 @@ export const searchProducts = async (req, res) => {
       isActive: true,
       inStock: true,
       $or: [
-        { title: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } },
-        { brand: { $regex: query, $options: 'i' } },
-        { category: { $regex: query, $options: 'i' } },
-        { subCategory: { $regex: query, $options: 'i' } }
+        { title: { $regex: escapeRegExp(query.trim()), $options: 'i' } },
+        { description: { $regex: escapeRegExp(query.trim()), $options: 'i' } },
+        { brand: { $regex: escapeRegExp(query.trim()), $options: 'i' } },
+        { category: { $regex: escapeRegExp(query.trim()), $options: 'i' } },
+        { subCategory: { $regex: escapeRegExp(query.trim()), $options: 'i' } }
       ]
     })
     .select('title slug basePrice baseSalePrice mainImages brand category')

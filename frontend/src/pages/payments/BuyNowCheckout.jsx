@@ -16,13 +16,14 @@ import { motion } from "framer-motion";
 import api from "../../utils/axiosInstance";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency } from '../../context/CurrencyContext';
+import ProductImage from "../../components/ProductImage";
+import { resolveImageUrl } from "../../utils/productImages";
 
 export default function BuyNowCheckout() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { format: formatPrice, currency, rates, loading: currencyLoading, convertAmount } = useCurrency();
+  const { format: formatPrice, currency, rates, loading: currencyLoading } = useCurrency();
   
-  const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState("");
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -58,7 +59,7 @@ export default function BuyNowCheckout() {
       };
       
       fetchAddress();
-    } catch (err) {
+    } catch {
       setError("Invalid product data");
       setTimeout(() => navigate('/'), 2000);
     }
@@ -88,11 +89,6 @@ export default function BuyNowCheckout() {
         setIsProcessing(false);
         return;
       }
-
-      // Calculate converted amounts for display
-      const subtotalConverted = convertAmount(orderData.subtotal);
-      const totalConverted = convertAmount(orderData.total);
-      const deliveryConverted = convertAmount(orderData.delivery);
 
       // Create payment payload with currency info
       const paymentPayload = {
@@ -280,35 +276,9 @@ export default function BuyNowCheckout() {
 
   const { product, variant, quantity, price, subtotal, delivery, total } = orderData;
 
-  // Calculate converted amounts
-  const priceConverted = convertAmount(price);
-  const subtotalConverted = convertAmount(subtotal);
-  const deliveryConverted = convertAmount(delivery);
-  const totalConverted = convertAmount(total);
-
   // Get the correct image to display
   const getProductImage = () => {
-    console.log("Getting product image. Variant:", variant, "Product:", product);
-    
-    // If variant has images, use variant images
-    if (variant?.images && variant?.images?.length > 0) {
-      const imageUrl = typeof variant.images[0] === 'string' 
-        ? variant.images[0] 
-        : variant.images[0]?.url;
-      console.log("Using variant image:", imageUrl);
-      return imageUrl || "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200&q=80";
-    }
-    // Otherwise use product main images
-    if (product?.mainImages && product.mainImages?.length > 0) {
-      const imageUrl = typeof product.mainImages[0] === 'string' 
-        ? product.mainImages[0] 
-        : product.mainImages[0]?.url;
-      console.log("Using product mainImage:", imageUrl);
-      return imageUrl || "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200&q=80";
-    }
-    // Fallback image
-    console.log("Using fallback image");
-    return "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200&q=80";
+    return resolveImageUrl(variant?.images?.[0] || product?.mainImages?.[0]);
   };
 
   return (
@@ -349,14 +319,10 @@ export default function BuyNowCheckout() {
               <div className="p-6 flex gap-6">
                 {/* Product Image */}
                 <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                  <img
+                  <ProductImage
                     src={getProductImage()}
                     alt={product.title}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.error("Image failed to load:", e.target.src);
-                      e.target.src = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200&q=80";
-                    }}
                   />
                 </div>
 

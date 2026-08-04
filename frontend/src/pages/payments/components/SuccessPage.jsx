@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../../utils/axiosInstance";
+import ProductImage from "../../../components/ProductImage";
 import { 
   CheckCircle, 
   Package, 
@@ -112,15 +113,11 @@ export default function PaymentSuccessPage() {
                 {order.items.map((item, index) => (
                   <div key={index} className="flex gap-4 p-4 border border-gray-100 rounded-lg">
                     <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
-                      {item.product?.mainImages?.[0]?.url ? (
-                        <img
-                          src={item.product.mainImages[0].url}
-                          alt={item.product.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Package className="w-full h-full p-4 text-gray-400" />
-                      )}
+                      <ProductImage
+                        src={item.product?.mainImages?.[0]}
+                        alt={item.product?.title}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">{item.product?.title}</h3>

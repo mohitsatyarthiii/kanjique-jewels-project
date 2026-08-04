@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/axiosInstance";
+import ProductImage from "../../components/ProductImage";
 import { 
   FiUser, 
   FiMail, 
@@ -80,7 +81,7 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await api.put("/api/profile", {
+      await api.put("/api/profile", {
         name: user.name,
         mobile: user.mobile,
         address: user.address,
@@ -504,8 +505,8 @@ export default function ProfilePage() {
                         <div className="border-t border-[#f4e6c3] pt-4">
                           <div className="flex items-center gap-3">
                             <div className="w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3]">
-                              <img
-                                src={order.items?.[0]?.product?.images?.[0]?.url || "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=200&q=80"}
+                              <ProductImage
+                                src={order.items?.[0]?.product?.mainImages?.[0] || order.items?.[0]?.product?.images?.[0]}
                                 alt={order.items?.[0]?.product?.title}
                                 className="w-full h-full object-cover"
                               />

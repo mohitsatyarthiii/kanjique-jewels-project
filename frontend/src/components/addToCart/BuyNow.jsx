@@ -1,6 +1,5 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Zap, AlertCircle, Loader2 } from 'lucide-react';
-import api from '../../utils/axiosInstance';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';

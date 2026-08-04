@@ -1,9 +1,10 @@
 // components/SearchBar.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiChevronDown, FiClock } from "react-icons/fi";
 import api from "../utils/axiosInstance";
+import ProductImage from "./ProductImage";
 
 const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
     const fetchAllProducts = async () => {
       try {
         setLoading(true);
-        const res = await api.get("/api/products");
+        const res = await api.get("/api/public/products", { params: { limit: 100 } });
         setAllProducts(res.data.products || []);
       } catch (err) {
         console.error("Failed to fetch products:", err);
@@ -52,7 +53,7 @@ const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
   };
 
   // Filter products based on query
-  const filterProducts = (searchQuery) => {
+  const filterProducts = useCallback((searchQuery) => {
     if (!searchQuery.trim()) {
       setSuggestions([]);
       return;
@@ -71,7 +72,7 @@ const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
     }).slice(0, 8); // Limit to 8 suggestions
     
     setSuggestions(filtered);
-  };
+  }, [allProducts]);
 
   // Debounced search
   useEffect(() => {
@@ -80,7 +81,7 @@ const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
     }, 200);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [query, allProducts]);
+  }, [query, filterProducts]);
 
   // Close on outside click
   useEffect(() => {
@@ -236,20 +237,12 @@ const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
                             >
                               <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] flex-shrink-0">
-                                  {product.images && product.images[0]?.url ? (
-                                    <img
-                                      src={product.images[0].url}
-                                      alt={product.title}
-                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full bg-gradient-to-br from-[#b2965a] to-[#d4b97d] flex items-center justify-center">
-                                      <span className="text-white text-xs font-bold">
-                                        {product.title?.charAt(0) || "J"}
-                                      </span>
-                                    </div>
-                                  )}
+                                  <ProductImage
+                                    src={product.mainImages?.[0] || product.images?.[0]}
+                                    alt={product.title}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                    loading="lazy"
+                                  />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-gray-900 group-hover:text-[#b2965a] text-sm truncate">
@@ -260,7 +253,7 @@ const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
                                       {product.category || "Jewellery"}
                                     </span>
                                     <span className="font-bold text-[#b2965a]">
-                                      ₹{product.price ? product.price.toLocaleString() : "0"}
+                                      ₹{(product.displayPrice || product.baseSalePrice || product.basePrice || 0).toLocaleString()}
                                     </span>
                                   </div>
                                 </div>
@@ -330,20 +323,12 @@ const SearchBar = ({ isGlass = false, onCloseMobileMenu = null }) => {
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg overflow-hidden bg-gradient-to-br from-[#fef8e9] to-[#f4e6c3] flex-shrink-0">
-                              {product.images && product.images[0]?.url ? (
-                                <img
-                                  src={product.images[0].url}
-                                  alt={product.title}
-                                  className="w-full h-full object-cover"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-[#b2965a] to-[#d4b97d] flex items-center justify-center">
-                                  <span className="text-white text-xs font-bold">
-                                    {product.title?.charAt(0) || "J"}
-                                  </span>
-                                </div>
-                              )}
+                              <ProductImage
+                                src={product.mainImages?.[0] || product.images?.[0]}
+                                alt={product.title}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-gray-900 text-sm truncate">

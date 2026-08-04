@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../utils/axiosInstance";
@@ -28,7 +28,6 @@ const categories = [
 
 const Navbar = ({ homeTransparent = false }) => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
 
   const [open, setOpen] = useState(false);
